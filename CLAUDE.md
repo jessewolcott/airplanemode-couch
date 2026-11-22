@@ -78,7 +78,6 @@ and don't touch the stack's containers: `docker build -t airplanemode-couch:try 
 ## Releasing
 
 Push a `vX.Y.Z` tag. CI tests, then publishes `ghcr.io/jessewolcott/airplanemode-couch:X.Y.Z`
-(arm64 + amd64). **Ask Jesse before pushing a release tag.** Released: 0.1.0 (pinned in the platform's `compose.yaml`).
-0.2.0 (six therapists, Robin replaced by Mai, low-mood switch) is committed but **not tagged yet**.
-When it is: bump the pin in the platform's `compose.yaml`, and update the platform's
-`portal/apps.json` description (it still says "a Stoic or a Socialist").
+(arm64 + amd64). **Ask Jesse before pushing a release tag.** Released: 0.1.0; 0.2.0 (six therapists, Robin replaced by Mai, low-mood switch, tuned for
+Gemma 4 E2B), pinned in the platform's `compose.yaml`. On a release: bump that pin, and keep the
+platform's `portal/apps.json` description and the homepage card in step.
