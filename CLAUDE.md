@@ -16,7 +16,7 @@ docker compose up -d --build         # standalone dev: http://localhost:8774 (of
 python tests/test_couch.py           # tests (CI runs these before building); .venv has the pins
 ```
 
-To try the real model: the platform dev stack runs `llm` (Qwen2.5-1.5B) on the `airplanemode`
+To try the real model: the platform dev stack runs `llm` (Gemma 4 E2B since platform decision 0018) on the `airplanemode`
 Docker network. Build under your own tag (the dev stack's own container uses `airplanemode-couch:dev`)
 and don't touch the stack's containers: `docker build -t airplanemode-couch:try .` then
 `docker run --rm --network airplanemode -e LLM_URL=http://llm:8080 -p 8774:8000 airplanemode-couch:try`.
@@ -70,8 +70,9 @@ and don't touch the stack's containers: `docker build -t airplanemode-couch:try 
   and whether `LLM_TIMEOUT` 45 s is right there.
 - Real phones. The page was driven in a phone-sized desktop browser through the platform's dev
   stack (Caddy + Qwen2.5-1.5B) for 0.1. The six-therapist roster (0.2.0) was tried through the API
-  against the same model; where the 1.5B model still falls short of each persona is in the 0.2.0
-  commit notes and the session report.
+  against Qwen2.5-1.5B, then against Gemma 4 E2B (42 scripted conversations): on Gemma the
+  playful pair hold character and drop it when they should; the Pragmatist stacked questions
+  until `tidy` kept only the last one (he now rarely uses his scaling/miracle tools).
 
 ## Releasing
 

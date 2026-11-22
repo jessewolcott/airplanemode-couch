@@ -60,8 +60,9 @@ logs no message text: each message is sent with the recent turns, answered, and 
   aren't in the school's file are dropped (a small model invents Seneca lines; only the
   Narcissist may quote himself, "As I always say, ..."), sentences it already said, copied from
   the school's examples, said twice in one reply, or that repeat your own last message as if
-  they were its own are dropped, anything after a question that ends a paragraph is cut, and
-  replies are capped at about 150 words on a sentence boundary.
+  they were its own are dropped, and so is a long sentence it said before with a word or two
+  changed (a retold anecdote). Anything after a question that ends a paragraph is cut, only the
+  last question in a reply is kept, and replies are capped at about 150 words on a sentence boundary.
   Requests for a quote are answered from the school file, never from the model.
 - **The offline mind.** With no model (`LLM_URL` empty), or when
   it's unreachable, loading, or too busy to start answering within `LLM_TIMEOUT`, a rule-based
@@ -158,5 +159,6 @@ python tests/test_couch.py         # tests (CI runs these before building)
 
 No volume: it stores nothing. Memory limit 64 MB (about 35 MB in use).
 
-*Not yet tested on real hardware.* The model path was tried against Qwen2.5-1.5B-Instruct on
-a desktop (the platform dev stack); speeds on the R6S are unmeasured.
+*Not yet tested on real hardware.* The model path was tried on a desktop (the platform dev
+stack) against Qwen2.5-1.5B-Instruct and, for 0.2.0, the platform's new model, Gemma 4 E2B (42
+scripted conversations, all six therapists); speeds on the R6S are unmeasured.

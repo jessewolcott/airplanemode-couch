@@ -575,6 +575,28 @@ def test_dedupe_drops_repeated_sentences():
     assert prompt.dedupe("Mm. A fresh thought about your week here?", h) == "Mm. A fresh thought about your week here?"
 
 
+def test_tidy_keeps_one_question():
+    # Gemma's Pragmatist, verbatim: scale, exception, step, and the step again
+    raw = ("Feeling overwhelmed and frozen is understandable right now. On a scale of 0 to 10, what number describes "
+           "how locked down you feel? Think back to a time when handling money felt less scary; what was different "
+           "then? What is one very small thing you could do tomorrow? What's the absolute smallest action you can take?")
+    out = prompt.tidy(raw)
+    assert out.count("?") == 1 and out.endswith("What's the absolute smallest action you can take?"), out
+    assert out.startswith("Feeling overwhelmed and frozen is understandable right now.")
+    assert prompt.tidy("That is hard. What helps?") == "That is hard. What helps?"
+    assert prompt.tidy("Queues, aren't they? Try the app instead.") == "Queues, aren't they? Try the app instead."
+
+
+def test_dedupe_drops_a_retold_anecdote():
+    h = [{"role": "assistant", "content": "I remember once telling a very famous couple that their shared vacation was "
+                                          "ruined because they didn't schedule an hour of silence. Try a detox."}]
+    text = ("Messaging him is rarely the move. I once convinced a very famous couple that their shared vacation was "
+            "ruined because they didn't schedule an hour of silence. Write down three things you like about yourself.")
+    assert prompt.dedupe(text, h) == "Messaging him is rarely the move. Write down three things you like about yourself."
+    fresh = "I once sang for a very famous couple at their vacation home. Write down three things you like."
+    assert prompt.dedupe(fresh, h) == fresh
+
+
 def test_model_repeating_itself_gets_a_simpler_reply():
     use_fake(pieces=["What part of this ", "is yours to carry?"])
     msgs = [{"role": "user", "content": "work is hard"}, {"role": "assistant", "content": "What part of this is yours to carry?"},

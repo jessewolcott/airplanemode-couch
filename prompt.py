@@ -172,7 +172,7 @@ MAX_WORDS = 150
 BAD = re.compile(
     r"\bas an? (?:ai|a\.i\.|artificial|language model|virtual|digital|chat ?bot|machine)"
     r"|\b(?:i'?m|i am) (?:just |only |merely )?(?:an? )?(?:ai|a\.i\.|artificial intelligence|language model|chat ?bot|virtual assistant|computer program)\b"
-    r"|\blanguage model\b|\bopenai\b|\bqwen\b|\balibaba cloud\b"
+    r"|\blanguage model\b|\bopenai\b|\bqwen\b|\balibaba cloud\b|\bgemma\b|\bgoogle deepmind\b"
     r"|\b\d+ to \d+ (?:short )?sentences\b|\bending with one question\b|\bthen one question\b|\bprivate note\b"
     r"|\bnot something the person said\b|\bangle that may fit\b"
     r"|\b(?:i'?m|i am|as) (?:a |your )?(?:licensed|certified|registered|qualified|trained) (?:therapist|counsel+or|psychologist|psychiatrist|doctor|physician|professional|clinician)"
@@ -244,6 +244,20 @@ def _unique(sentences):
         seen.add(n)
         out.append(s)
     return out
+
+
+def _is_question(sentence):
+    return sentence.rstrip().rstrip("\"'”’)").endswith("?")
+
+
+def _one_question(sentences):
+    """Keep only the last question. Gemma's Pragmatist asked four or five in one reply (scale,
+    exception, miracle, step, and the step again); the rule is one question per reply."""
+    asks = [i for i, s in enumerate(sentences) if _is_question(s)]
+    if len(asks) <= 1:
+        return sentences
+    drop = set(asks[:-1])
+    return [s for i, s in enumerate(sentences) if i not in drop]
 
 
 def _cap(sentences):
@@ -322,6 +336,7 @@ def tidy(raw, name="", speaker="", quotes=(), self_quotes=False):
         if words < 8:            # nothing much else: keep the fragment, trailing off
             keep.append(tail.rstrip(" ,;:-") + "…")
         # otherwise the reply ran out of tokens mid-sentence: drop the fragment
+    keep = _one_question(keep)
     out = _squash("".join(keep))
     return out if len(out.split()) >= 3 else ""
 
@@ -341,24 +356,33 @@ def _parrots(sentence, user_words):
             and sum(w in user_words for w in words) >= 0.85 * len(words))
 
 
+def _retold(sentence, long_said):
+    """The same long sentence again with a word or two changed (Gemma's Narcissist told the same
+    anecdote two turns running: "I once convinced..." / "I remember once telling...")."""
+    words = set(_norm(sentence).split())
+    return len(words) >= 8 and any(len(words & e) >= 0.8 * len(words) for e in long_said)
+
+
 def dedupe(text, history, examples=()):
     """Drop sentences the therapist already said earlier in the session, copied from the school's
     example replies (a small model parrots them), or that repeat the person's last message in the
     first person ("" if too little is left)."""
     if not text:
         return ""
-    said = set()
+    said, long_said = set(), []
     earlier = [m.get("content", "") for m in history if m.get("role") == "assistant"]
     for content in earlier + [e["reply"] for e in examples]:
         for sent in split_sentences(content + " ")[0]:
             if len(sent.split()) >= 4:
                 said.add(_norm(sent))
+            if len(sent.split()) >= 8:
+                long_said.append(set(_norm(sent).split()))
     users = [m.get("content", "") for m in history if m.get("role") == "user"]
     user_words = set(_norm(" ".join(users[-2:])).split())
     if earlier:   # mid-session, "Hello again, Sam." at the top of every reply is a tic: drop it
         text = re.sub(r"^\s*(?:hello|hi|hey)(?: again| there)?(?:,? [\w'’-]{1,30})?[.!]\s+", "", text, count=1, flags=re.I)
     sentences, tail = split_sentences(text + " ")
-    keep = [s for s in sentences if _norm(s) not in said and not _parrots(s, user_words)]
+    keep = [s for s in sentences if _norm(s) not in said and not _retold(s, long_said) and not _parrots(s, user_words)]
     if len(keep) == len(sentences):
         return text
     out = _squash("".join(keep + ([tail] if tail.strip() else [])))
