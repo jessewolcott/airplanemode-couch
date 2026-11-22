@@ -1,7 +1,7 @@
 # AirplaneMode app manifest. See the platform repo: docs/app-contract.md
 id: couch
 name: The Couch
-description: A therapist simulator for the long way round. Talk things through with a Stoic or a socialist; a toy for reflection, not therapy.
+description: A therapist simulator for the long way round. Talk things through with an empath, a pragmatist, a Stoic, a student of Ho Chi Minh, or (for laughs) a nihilist or a narcissist; a toy for reflection, not therapy.
 image: ghcr.io/jessewolcott/airplanemode-couch
 port: 8000
 path: /couch/

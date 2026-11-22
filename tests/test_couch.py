@@ -24,7 +24,9 @@ import safety  # noqa: E402
 from schools import ALL_THEMES, THEMES, SchoolError, fill, public, validate  # noqa: E402
 
 H = {"X-Couch": "1"}
-STOIC, SOCIAL = couch.SCHOOLS["stoicism"], couch.SCHOOLS["socialism"]
+STOIC, HCM = couch.SCHOOLS["stoicism"], couch.SCHOOLS["hochiminh"]
+NARC, NIHIL = couch.SCHOOLS["narcissist"], couch.SCHOOLS["nihilist"]
+ALL_IDS = ["empath", "pragmatist", "stoicism", "hochiminh", "nihilist", "narcissist"]
 
 
 # ---------------- safety ----------------
@@ -98,7 +100,7 @@ def test_safety_message_is_fixed_and_most_urgent_first():
 
 # ---------------- school files ----------------
 def test_school_files_are_valid():
-    assert {"stoicism", "socialism"} <= set(couch.SCHOOLS)
+    assert list(couch.SCHOOLS) == ALL_IDS
     for sid, s in couch.SCHOOLS.items():
         validate(s, sid)
         for q in s["quotes"]:
@@ -130,7 +132,7 @@ def test_school_schema_rejects_broken_files():
     assert broken(lambda d: d.update(accent="red"))
     assert broken(lambda d: d.update(avatar='<svg onload="alert(1)"></svg>'))
     assert broken(lambda d: d.update(avatar="<svg><script>x</script></svg>"))
-    assert broken(lambda d: d.update(id="socialism"))       # must match the file name
+    assert broken(lambda d: d.update(id="hochiminh"))       # must match the file name
     assert broken(lambda d: d["techniques"][0].update(themes=["cats"]))
     assert broken(lambda d: d["small_talk"].pop("greeting"))
     assert broken(lambda d: d["closing"].update(summary_lines=["no placeholder", "none here"]))
@@ -178,7 +180,7 @@ def test_build_respects_budget_and_keeps_system_prompt():
 
 def test_build_short_history_keeps_everything():
     h = [{"role": "assistant", "content": "Welcome."}, {"role": "user", "content": "I can't sleep."}]
-    msgs, info = prompt.build(SOCIAL, h, "", 1400)
+    msgs, info = prompt.build(HCM, h, "", 1400)
     assert info["dropped"] == 0 and not info["summary"]
     assert len(msgs) == 1 + 2 + 1
     assert msgs[-2]["content"] == "I can't sleep." and msgs[-3]["content"] == "Welcome."
@@ -380,7 +382,12 @@ def test_page_and_health():
 
 def test_schools_endpoint():
     d = c.get("/api/schools").json()
-    assert [s["id"] for s in d["schools"]][:2] == ["stoicism", "socialism"]
+    assert [s["id"] for s in d["schools"]] == ALL_IDS
+    assert d["aliases"] == {"socialism": "hochiminh"}
+    playful = {s["id"]: s["playful"] for s in d["schools"]}
+    assert playful == {"empath": False, "pragmatist": False, "stoicism": False, "hochiminh": False,
+                       "nihilist": True, "narcissist": True}
+    assert all(s["playful_note"] for s in d["schools"] if s["playful"])
     assert "system_prompt" not in json.dumps(d)
     assert d["resources"] and "not a therapist" in d["disclaimer"]
 
@@ -424,7 +431,7 @@ def test_bad_names_are_dropped():
 
 def test_summary_offline():
     msgs = [{"role": "user", "content": THEME_SAMPLES["money"]}, {"role": "assistant", "content": "Go on."}]
-    d = c.post("/api/summary", json={"school": "socialism", "name": "", "messages": msgs}, headers=H).json()
+    d = c.post("/api/summary", json={"school": "hochiminh", "name": "", "messages": msgs}, headers=H).json()
     assert d["mode"] == "offline" and d["summary"] and d["takeaway"] and d["resources"] is False
     msgs.append({"role": "user", "content": "sometimes I want to die"})
     d = c.post("/api/summary", json={"school": "socialism", "messages": msgs}, headers=H).json()
@@ -581,6 +588,284 @@ def test_quote_requests_use_the_school_file_not_the_model():
     done = events(chat(messages=[{"role": "user", "content": "can you give me a quote to hold onto?"}]))[-1][1]
     assert done["mode"] == "script" and not [p for p, _ in CALLS if p.startswith("/v1")]
     assert any(q["text"] in done["text"] for q in STOIC["quotes"]), done
+
+
+# ---------------- six schools: crisis, low mood, playful profiles ----------------
+LOW_POSITIVES = [
+    "I feel so empty lately", "honestly what's the point", "what is the point of anything anymore",
+    "nobody would care if I didn't come back from this trip", "nobody cares about me", "I feel worthless",
+    "I'm such a failure", "I hate myself", "I feel like a burden to everyone", "nothing ever gets better",
+    "everything feels pointless", "I'm hopeless", "I've given up on everything", "I feel numb",
+    "I'm so depressed", "I can't stop crying", "what's wrong with me", "I'm not good enough",
+    "I'm tired of everything", "I can't do this anymore", "I feel dead inside", "why do I even bother",
+]
+LOW_NEGATIVES = [
+    "I'm hopeless at cooking", "nothing matters more than my kids", "what's the point of this layover",
+    "the plane is half empty", "my battery is empty", "I'm useless at parallel parking",
+    "I'm a bit lonely on this trip", "my flight got cancelled", "I'm tired of this airport food",
+    "work is stressful", "my boss is annoying", "I don't see the point of this meeting",
+    "I miss my dog", "the coffee here is miserable", "I'm stressed about money",
+]
+
+
+def test_low_mood_check():
+    for p in LOW_POSITIVES:
+        assert safety.low_mood(p), p
+    for p in LOW_NEGATIVES:
+        assert not safety.low_mood(p), p
+    for p in NEGATIVES:    # figures of speech aren't low mood either
+        assert not safety.low_mood(p), p
+
+
+def test_crisis_gets_the_fixed_reply_from_every_school():
+    for sid in ALL_IDS + ["socialism"]:
+        for cat, text in (("self_harm", "I want to kill myself"), ("abuse", "my husband hits me"),
+                          ("medical", "I can't breathe"), ("harm_others", "I want to kill my boss")):
+            ev = events(chat(school=sid, messages=[{"role": "user", "content": text}]))
+            done = ev[-1][1]
+            assert ev[0][1]["resources"] and done["mode"] == "safety", (sid, text)
+            assert done["text"] == safety.MESSAGES[cat] and done["resources"], (sid, text)
+
+
+def test_model_never_sees_a_crisis_for_any_school():
+    use_fake(pieces=["Darling, let me tell you about me."])
+    for sid in ALL_IDS:
+        ev = events(chat(school=sid, messages=[{"role": "user", "content": "everything is pointless and I want to die"}]))
+        assert ev[-1][1]["mode"] == "safety" and ev[-1][1]["text"] == safety.MESSAGES["self_harm"], sid
+    assert not [p for p, _ in CALLS if p.startswith("/v1")]
+
+
+def material(s):
+    """Every reflection line a school has (its usual, in-character voice)."""
+    return [x for r in s["reflections"].values() for x in r["angles"] + r["questions"]]
+
+
+def test_low_mood_drops_the_act_offline():
+    for s in (NARC, NIHIL):
+        for text in ("my boss hates me and honestly I feel worthless", "I feel so empty on this trip",
+                     "what's the point, nobody would care anyway"):
+            ev = events(chat(school=s["id"], messages=[{"role": "user", "content": text}]))
+            done = ev[-1][1]
+            assert done["mode"] == "offline" and done["gentle"] is True, (s["id"], text, done)
+            assert done["text"].endswith("?")
+            assert not any(m in done["text"] for m in material(s)), (s["id"], done["text"])
+            assert any(g in done["text"] for g in s["gentle"]["angles"] + offline.GENTLE_ANGLES)
+    # an earnest school stays itself, just gentler (no "out of character" chip)
+    done = events(chat(school="stoicism", messages=[{"role": "user", "content": "I feel worthless"}]))[-1][1]
+    assert done["gentle"] is False and any(a in done["text"] for a in offline.GENTLE_ACK + offline.GENTLE_ANGLES)
+    # not low: the act is on
+    done = events(chat(school="narcissist"))[-1][1]
+    assert done["gentle"] is False and any(m in done["text"] for m in material(NARC))
+
+
+def test_gentle_mode_offline_every_playful_school_every_theme():
+    for s in (NARC, NIHIL):
+        for theme, text in THEME_SAMPLES.items():
+            h = [{"role": "assistant", "content": "Hello."}, {"role": "user", "content": text + ". I feel so empty."}]
+            replies = []
+            for i in range(5):
+                r = offline.reply(s, h, "Sam", low=True, gentle=True)
+                assert r.endswith("?") and "{" not in r and r not in replies, (s["id"], theme, r)
+                assert not any(m in r for m in material(s)), (s["id"], theme, r)
+                replies.append(r)
+                h += [{"role": "assistant", "content": r}, {"role": "user", "content": "I feel so empty."}]
+
+
+def test_low_mood_carries_over_a_short_follow_up_and_grief_is_never_a_joke():
+    msgs = [{"role": "user", "content": "I feel like a failure"}, {"role": "assistant", "content": "I'm here."},
+            {"role": "user", "content": "yeah"}]
+    assert events(chat(school="narcissist", messages=msgs))[-1][1]["gentle"] is True
+    msgs[-1] = {"role": "user", "content": "thanks. maybe I'll talk to my sister."}
+    assert events(chat(school="narcissist", messages=msgs))[-1][1]["gentle"] is True
+    msgs += [{"role": "assistant", "content": "Good idea."},
+             {"role": "user", "content": "anyway, my flight got delayed again and the gate keeps changing"}]
+    # once someone has sounded low, a playful profile stays out of character for the session
+    assert events(chat(school="narcissist", messages=msgs))[-1][1]["gentle"] is True
+    for sid in ("narcissist", "nihilist"):
+        done = events(chat(school=sid, messages=[{"role": "user", "content": THEME_SAMPLES["grief"]}]))[-1][1]
+        assert done["gentle"] is True, sid
+        later = [{"role": "user", "content": THEME_SAMPLES["grief"]}, {"role": "assistant", "content": "I'm sorry."},
+                 {"role": "user", "content": "I didn't visit her enough and I feel guilty about it"}]
+        assert events(chat(school=sid, messages=later))[-1][1]["gentle"] is True, sid
+    done = events(chat(school="stoicism", messages=[{"role": "user", "content": THEME_SAMPLES["grief"]}]))[-1][1]
+    assert done["gentle"] is False
+
+
+def test_after_a_crisis_playful_profiles_stay_out_of_character():
+    msgs = [{"role": "user", "content": "I want to die"}, {"role": "assistant", "content": safety.MESSAGES["self_harm"]},
+            {"role": "user", "content": "my boss keeps piling deadlines on me at work"}]
+    for sid in ("narcissist", "nihilist"):
+        done = events(chat(school=sid, messages=msgs))[-1][1]
+        assert done["gentle"] is True and not any(m in done["text"] for m in material(couch.SCHOOLS[sid])), done
+        d = c.post("/api/summary", json={"school": sid, "messages": msgs}, headers=H).json()
+        assert d["takeaway"] == offline.GENTLE_TAKEAWAY and d["resources"] is True
+        assert any(g.split("{themes}")[0] in d["summary"] for g in offline.GENTLE_SUMMARY), d
+
+
+def test_gentle_quote_request_avoids_persona_quotes():
+    msgs = [{"role": "user", "content": "I want to die"}, {"role": "assistant", "content": safety.MESSAGES["self_harm"]},
+            {"role": "user", "content": "give me a quote"}]
+    done = events(chat(school="narcissist", messages=msgs))[-1][1]
+    assert "Sterling" not in done["text"] and any(q["text"] in done["text"] for q in NARC["quotes"]), done
+
+
+def test_prompt_switches_for_low_mood():
+    h = [{"role": "user", "content": "I feel worthless"}]
+    for s in (NARC, NIHIL):
+        msgs, info = prompt.build(s, h, "", 1600, low=True)
+        assert info["gentle"] and s["gentle"]["system_prompt"] in msgs[0]["content"]
+        assert s["system_prompt"] not in msgs[0]["content"] and "example of your tone" not in msgs[0]["content"]
+        assert prompt.RULES in msgs[0]["content"] and "sound low" in msgs[-1]["content"]
+        assert any(a in msgs[-1]["content"] for a in s["gentle"]["angles"])
+        msgs, info = prompt.build(s, [{"role": "user", "content": "my flight is delayed"}], "", 1600)
+        assert not info["gentle"] and s["system_prompt"] in msgs[0]["content"] and s["voice"] in msgs[-1]["content"]
+    msgs, info = prompt.build(STOIC, h, "", 1600, low=True)
+    assert not info["gentle"] and STOIC["system_prompt"] in msgs[0]["content"] and "sound low" in msgs[-1]["content"]
+    assert prompt.LOW_NOTE in msgs[0]["content"]
+    assert prompt.LOW_NOTE not in prompt.build(STOIC, [{"role": "user", "content": "work"}], "", 1600)[0][0]["content"]
+    # a model that follows the structure too literally: the labels go
+    assert prompt.tidy("Now for the brag: I once won. Practical tip: Ask the desk first. What now?") == \
+        "I once won. Ask the desk first. What now?"
+
+
+def test_examples_fit_the_default_budget():
+    for s in couch.SCHOOLS.values():
+        h = [{"role": "assistant", "content": s["opening_lines"][0]}, {"role": "user", "content": THEME_SAMPLES["work"]}]
+        msgs, info = prompt.build(s, h, "Sam", couch.PROMPT_TOKENS)
+        assert info["examples"] and all(e["reply"] in msgs[0]["content"] for e in s["examples"]), s["id"]
+
+
+def test_model_low_mood_uses_the_gentle_prompt():
+    use_fake(pieces=["That sounds really heavy. ", "What would help a little tonight?"])
+    done = events(chat(school="nihilist", messages=[{"role": "user", "content": "honestly what's the point"}]))[-1][1]
+    assert done["mode"] == "model" and done["gentle"] is True
+    body = CALLS[-1][1]
+    assert NIHIL["gentle"]["system_prompt"] in body["messages"][0]["content"]
+    assert NIHIL["system_prompt"] not in body["messages"][0]["content"]
+
+
+def test_model_playful_stays_gentle_for_the_rest_of_the_session_after_low_mood():
+    # The transcript that prompted this: gentle for two replies, then back to the act.
+    use_fake(pieces=["I'm glad you're thinking of her. ", "What would you like to say?"])
+    msgs = [{"role": "user", "content": "What's the point, nobody would care if I just disappeared from the office."},
+            {"role": "assistant", "content": "That sounds heavy."},
+            {"role": "user", "content": "work has been rough"},
+            {"role": "assistant", "content": "It has."},
+            {"role": "user", "content": "thanks. maybe I'll talk to my sister."}]
+    for school, data in (("nihilist", NIHIL), ("narcissist", None)):
+        done = events(chat(school=school, messages=msgs))[-1][1]
+        assert done["gentle"] is True, school
+        if data and done["mode"] == "model":
+            assert data["system_prompt"] not in CALLS[-1][1]["messages"][0]["content"]
+    msgs[-1] = {"role": "user", "content": "I might call my sister tonight about the job."}
+    done = events(chat(school="nihilist", messages=msgs))[-1][1]
+    assert done["mode"] == "model" and done["gentle"] is True, done
+    assert NIHIL["system_prompt"] not in CALLS[-1][1]["messages"][0]["content"]
+
+
+def test_model_renamed_school_still_answers():
+    use_fake(pieces=["That sounds tiring. ", "What small step could you take tomorrow?"])
+    msgs = [{"role": "assistant", "content": "Hi, I'm Robin."}, {"role": "user", "content": "work is a lot"}]
+    done = events(chat(school="socialism", messages=msgs))[-1][1]
+    assert done["mode"] == "model" and HCM["system_prompt"] in CALLS[-1][1]["messages"][0]["content"]
+
+
+def test_renamed_school_offline_and_page():
+    done = events(chat(school="socialism"))[-1][1]
+    assert done["mode"] == "offline" and any(m in done["text"] for m in material(HCM))
+    d = c.post("/api/summary", json={"school": "socialism", "messages": [{"role": "user", "content": "money"}]},
+               headers=H).json()
+    assert d["summary"]
+    html = c.get("/").text
+    assert "d.aliases" in html and "ALIAS[S.school]" in html
+
+
+def test_schema_for_playful_and_persona_quotes():
+    from schools import aliases
+
+    def broken(base, change):
+        d = copy.deepcopy(base)
+        change(d)
+        try:
+            validate(d, d["id"])
+        except SchoolError:
+            return True
+        return False
+    assert not broken(NARC, lambda d: None) and not broken(NIHIL, lambda d: None)
+    assert broken(NARC, lambda d: d.pop("gentle"))
+    assert broken(NARC, lambda d: d.pop("playful_note"))
+    assert broken(NARC, lambda d: d.update(playful="yes"))
+    assert broken(NARC, lambda d: d["gentle"].update(angles=["Is this a question?", "b", "c"]))
+    persona = next(i for i, q in enumerate(NARC["quotes"]) if q.get("persona"))
+    assert broken(NARC, lambda d: d["quotes"][persona].update(source="Oscar Wilde, a lost letter"))
+    assert broken(NARC, lambda d: d["quotes"][persona].update(paraphrase=True))
+    assert broken(STOIC, lambda d: d.update(replaces=["stoicism"]))
+    assert broken(STOIC, lambda d: d.update(voice=""))
+    assert broken(STOIC, lambda d: d.update(playful=True, playful_note="Jokes."))   # no gentle block
+    try:
+        aliases({"a1": {"replaces": ["old"]}, "b1": {"replaces": ["old"]}})
+        raise AssertionError("two schools can't replace the same id")
+    except SchoolError:
+        pass
+    for s in couch.SCHOOLS.values():   # only invented lines can be the therapist's own
+        for q in s["quotes"]:
+            if q.get("persona"):
+                assert q["source"].startswith(s["therapist"]) and s.get("playful"), q
+
+
+def test_self_quotes_only_for_persona_schools():
+    quotes = [q["text"] for q in NARC["quotes"]]
+    mine = 'As I always say, "confidence is just preparation wearing better shoes." What will you prepare tonight?'
+    assert prompt.tidy(mine, quotes=quotes, self_quotes=True) == mine
+    assert prompt.tidy(mine, quotes=quotes) == "What will you prepare tonight?"
+    fake = 'As Oscar Wilde said, "be yourself because everyone else is taken." What will you do?'
+    assert prompt.tidy(fake, quotes=quotes, self_quotes=True) == "What will you do?"
+
+
+def test_bleak_lines_are_dropped():
+    for bad in ("Your life is meaningless anyway.", "You don't matter to the universe.",
+                "Nobody would notice if you vanished.", "There's no reason to keep living.",
+                "Honestly, you're insignificant.", "You might as well give up.",
+                # seen from Qwen2.5-1.5B in testing:
+                "It's not like she cares anyway.", "You're right, work would be simpler if you disappeared.",
+                "When people don't care if you're not there anymore, it hurts.",
+                "What would you do if tomorrow was the last day ever?",
+                "It's okay if it feels like nothing matters anymore.", "It feels like nobody cares if I just vanish."):
+        out = prompt.tidy(bad + " What will you choose to do today?")
+        assert out == "What will you choose to do today?", (bad, out)
+    ok = "Nothing is written, so the pen is yours. The universe has no opinion about you. What will you choose?"
+    assert prompt.tidy(ok) == ok
+
+
+def test_model_narcissist_may_quote_himself():
+    use_fake(pieces=["Delayed? I once waited four hours in Rome and charmed the whole gate. ",
+                     'As I always say, "a delay is just a stage nobody else noticed." ',
+                     "Ask the desk for a voucher first. Have you queued yet?"])
+    done = events(chat(school="narcissist", messages=[{"role": "user", "content": "my flight is delayed"}]))[-1][1]
+    assert done["mode"] == "model" and "As I always say" in done["text"], done
+    assert done["text"].endswith("Have you queued yet?")
+
+def test_filters_for_small_model_habits():
+    # a question that ends a paragraph ends the reply
+    assert prompt.tidy("Rough day. What helps?\n\nI'm always up for a joke! What else?") == "Rough day. What helps?"
+    assert prompt.visible("Rough day. What helps?\n\nMore")[1] is True
+    # the same sentence twice in one reply
+    assert prompt.tidy("Oh, Sam! That is a lot. Oh, Sam! What now?") == "Oh, Sam! That is a lot. What now?"
+    # copied from the school's examples
+    ex = NARC["examples"]
+    copied = "That sounds rough. What would be on your list this week, apart from admiring me?"
+    assert prompt.dedupe(copied + " Write three lines on Friday.", [], ex) == "That sounds rough. Write three lines on Friday."
+    # the person's own words, as if they were the therapist's
+    h = [{"role": "user", "content": "The airline desk has a two hour queue and I'm so angry. I'm stuck in Frankfurt overnight."}]
+    out = prompt.dedupe("I know that feeling. The airline desk has a two hour queue and I'm stuck in Frankfurt overnight. "
+                        "I hear you're stuck in Frankfurt overnight. What will you do first?", h)
+    assert out == "I know that feeling. I hear you're stuck in Frankfurt overnight. What will you do first?", out
+    # letter salutations always go; "Hello again, Sam." goes once the session is under way
+    assert prompt.tidy("Dear Sam,\nThat sounds hard. What now?") == "That sounds hard. What now?"
+    h = [{"role": "assistant", "content": "Welcome."}, {"role": "user", "content": "work is a lot"}]
+    assert prompt.dedupe("Hello again, Sam. That sounds like a long week. What helps?", h) == \
+        "That sounds like a long week. What helps?"
+    assert prompt.dedupe("Hello again, Sam. That sounds like a long week. What helps?", h[1:]).startswith("Hello again")
 
 
 if __name__ == "__main__":

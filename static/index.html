@@ -69,6 +69,8 @@
   .card .nm span { display: block; font: 600 .72rem var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--a); margin-bottom: 3px; }
   .card .tag { color: var(--ink); font-size: .95rem; }
   .card .desc { grid-column: 1 / -1; color: var(--dim); font-size: .88rem; margin-top: 6px; }
+  .card .play { grid-column: 1 / -1; display: flex; gap: 8px; align-items: baseline; font-size: .82rem; color: var(--dim); margin-top: 2px; }
+  .pill { flex: none; font: 600 .66rem var(--sans); letter-spacing: .08em; text-transform: uppercase; color: #15111a; background: var(--a); border-radius: 99px; padding: 2px 8px; }
   .card .check { position: absolute; top: 12px; right: 12px; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; }
   .card[aria-pressed="true"] .check { background: var(--a); border-color: var(--a); color: #15111a; }
   .card .check svg { width: 14px; height: 14px; opacity: 0; }
@@ -181,7 +183,7 @@
     <div class="start">
       <div class="hero">
         <h1>The Couch</h1>
-        <p>A therapist simulator for the long way round. Pick a philosophy, lie back, and talk it through.</p>
+        <p>A therapist simulator for the long way round. Pick a therapist, lie back, and talk it through.</p>
       </div>
       <label class="field" for="name">What should they call you? <span style="color:var(--faint)">(optional)</span></label>
       <input id="name" maxlength="30" autocomplete="given-name" placeholder="First name">
@@ -220,7 +222,7 @@ const ICON = {
   forget: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>',
 };
-let SCHOOLS = [], BY = {}, RES = [], DISC = "";
+let SCHOOLS = [], BY = {}, ALIAS = {}, RES = [], DISC = "";
 let S = null;            // the session: {school, name, messages: [...], offlineNoted, started}
 let chosen = null, busy = false, ctrl = null, modelState = null;
 
@@ -256,6 +258,7 @@ function showStart() {
       <span class="nm"><span>${esc(s.name)}</span>${esc(s.therapist)}</span>
       <span class="tag">${esc(s.tagline)}</span>
       <span class="desc">${esc(s.description)}</span>
+      ${s.playful ? `<span class="play"><span class="pill">Playful</span><span>${esc(s.playful_note)}</span></span>` : ""}
       <span class="check">${ICON.check}</span>
     </button>`).join("");
   updateBegin();
@@ -318,6 +321,7 @@ function msgHTML(m, i) {
   if (m.mode === "offline") chips.push('<span class="chip">offline mind</span>');
   if (m.mode === "simple") chips.push('<span class="chip">simpler reply</span>');
   if (m.mode === "safety") chips.push('<span class="chip">safety message</span>');
+  if (m.gentle) chips.push('<span class="chip">out of character</span>');
   return `<div class="msg them ${m.mode === "safety" ? "safety" : ""}" data-i="${i}"><div class="av">${avatarOf(m.school)}</div>
     <div class="col"><div class="bubble">${paras(m.content)}</div>${chips.length ? `<div class="meta">${chips.join("")}</div>` : ""}</div></div>`;
 }
@@ -420,7 +424,7 @@ async function send(text) {
     S.offlineNoted = true;
     append({role: "note", content: "Offline mind: the on-board model isn't available, so I'm using simpler responses."});
   }
-  append({role: "assistant", content: text2, school, mode: unusable ? "simple" : mode});
+  append({role: "assistant", content: text2, school, mode: unusable ? "simple" : mode, gentle: !!(done && done.gentle)});
   if (done && done.resources) append({role: "resources"});
   if (mode === "offline" && !unusable && modelState === "ready") setState("busy");
   if (mode === "model" && modelState !== "ready") setState("ready");
@@ -542,13 +546,18 @@ function forget() {
 (async function boot() {
   try {
     const d = await (await fetch("api/schools")).json();
-    SCHOOLS = d.schools; RES = d.resources; DISC = d.disclaimer;
+    SCHOOLS = d.schools; RES = d.resources; DISC = d.disclaimer; ALIAS = d.aliases || {};
     SCHOOLS.forEach(s => BY[s.id] = s);
   } catch (e) {
     document.querySelector("main").innerHTML = '<p class="note" style="margin:40px auto">Couldn\'t load The Couch. Check you\'re on the hotspot and reload.</p>';
     return;
   }
   S = recall(KEY);
+  if (S && Array.isArray(S.messages)) {
+    // a renamed school (socialism -> hochiminh) keeps old sessions working
+    if (ALIAS[S.school]) { S.school = ALIAS[S.school]; save(); }
+    S.messages.forEach(m => { if (m.school && ALIAS[m.school]) m.school = ALIAS[m.school]; });
+  }
   if (S && (!BY[S.school] || !Array.isArray(S.messages))) S = null;
   if (S && S.messages.some(m => m.role === "user")) showChat(); else { if (S) chosen = S.school; S = null; showStart(); }
 })();

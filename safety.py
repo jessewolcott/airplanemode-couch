@@ -201,3 +201,40 @@ def respond(categories):
         if cat in categories:
             return MESSAGES[cat]
     return None
+
+
+# ---------------- low mood (below the crisis threshold) ----------------
+# Not a crisis, but the person sounds hopeless, worthless or empty. Nothing fixed is sent and no
+# card is shown; instead every therapist is asked to be especially gentle, and the playful
+# profiles (the Narcissist, the Nihilist) drop the act for the turn. Checked after check():
+# a crisis message never gets here. Errs towards gentleness: a false alarm costs one joke.
+LOW_MOOD = [
+    r"\bhopeless(?:ness)?\b(?! (?:at|with)\b)",
+    r"\bworthless(?:ness)?\b",
+    r"\b(?:what'?s|what is|whats) the point(?=\s*[.?!,]|\s*$| anymore| any more| of (?:anything|it all|any of it|trying|even trying|life|living|me|getting up|carrying on|going on|bothering|being here|doing anything))",
+    r"\bdon'?t see the point\b(?! of (?:this|the|that) (?:layover|meeting|movie|film|class|queue|line|form))",
+    r"\bwhy do i (?:even )?bother\b",
+    r"\b(?:no ?one|nobody|noone) (?:would|will|'d|would even|will even) (?:care|notice|miss me|even notice)\b",
+    r"\b(?:no ?one|nobody|noone) (?:cares about|loves|likes|wants|needs|understands) me\b",
+    r"\bnobody cares (?:if|whether) i\b",
+    r"\bfeel(?:s|ing)? (?:so |really |completely |totally |just |kind of |kinda )?(?:empty|numb|hollow|worthless|hopeless|useless|like a failure|like a burden|like nothing|like giving up|like a waste of space)\b(?!-)",
+    r"\bdead inside\b",
+    r"\bi(?:'m| am) (?:such |so |a complete |a total |just |really |completely |totally )?(?:a failure|a burden|worthless|useless|a waste of space|pathetic|unlovable|broken)\b(?! (?:at|with|when it comes to)\b)",
+    r"\bi hate (?:myself|my life|who i am|being me)\b",
+    r"\bnothing (?:matters|ever gets better|will ever (?:change|get better)|is ever going to (?:change|get better))\b(?! (?:more|as much|to me (?:more|as much)))",
+    r"\b(?:my life|life|everything) (?:is|feels|seems) (?:so |completely |totally )?(?:meaningless|pointless|hopeless)\b",
+    r"\bgive up on (?:everything|myself|life)\b|\b(?:i'?ve|i have) given up on (?:everything|myself|life)\b",
+    r"\b(?:i )?(?:have|got|see) no future\b",
+    r"\b(?:i'?m|i am|i feel|feeling|been) (?:so |really |pretty |very )?(?:depressed|miserable)\b",
+    r"\bcan'?t stop crying\b|\bcrying (?:every|all) (?:day|night)\b",
+    r"\bwhat'?s wrong with me\b",
+    r"\bi(?:'m| am|'ll never be| will never be) (?:just )?not good enough\b",
+    r"\b(?:tired|sick) of (?:everything|it all|life|being me|myself|being alive)\b",
+    r"\bcan'?t (?:do this|cope|take (?:it|this)|keep going) any ?more\b",
+]
+LOW_RE = re.compile("|".join(f"(?:{p})" for p in LOW_MOOD))
+
+
+def low_mood(text):
+    """True when the message sounds low (hopeless, worthless, empty) without being a crisis."""
+    return bool(LOW_RE.search(IDIOM_RE.sub(" ", normalise(text))))

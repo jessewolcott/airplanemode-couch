@@ -5,19 +5,23 @@ the conversation (localStorage) and sends the recent turns with each message. No
 types is stored or logged on the box.
 
 Every user message goes through a deterministic safety check first (safety.py). If it trips,
-the reply is a fixed caring message plus crisis resources, never the model. Otherwise the model
+the reply is a fixed caring message plus crisis resources, never the model. Below that threshold,
+a "low mood" check (hopeless, worthless, empty) makes every therapist gentler for the turn, and
+the playful profiles (Narcissist, Nihilist) drop their act entirely. Otherwise the model
 answers in the chosen school's voice, streamed as it's written. If there's no model (LLM_URL
 empty, unreachable, loading or too busy), the "offline mind" (offline.py) answers instead.
 
 API (relative to the app's root; the platform serves it at /couch/):
-  GET  api/schools      the therapists (public parts of schools/*.json), crisis resources
+  GET  api/schools      the therapists (public parts of schools/*.json), crisis resources, and
+                        aliases {old id: new id} for renamed schools (socialism -> hochiminh)
   GET  api/status       is the model there? {"model": bool, "state": ...}
   POST api/reply        {school, name, messages:[{role, content}]} -> text/event-stream:
                           event: meta    {"safety": [...], "resources": bool}
                           event: delta   {"t": "more text"}          (model, as it streams)
                           event: replace {"text": "all text so far"} (a correction while streaming)
                           event: done    {"text": final, "mode": "model"|"offline"|"safety"|"script", "resources": bool,
-                                          "why": why the offline mind answered (none/busy/timeout/unusable/...)}
+                                          "why": why the offline mind answered (none/busy/timeout/unusable/...),
+                                          "gentle": a playful profile dropped its act for this reply}
   POST api/summary      {school, name, messages} -> {summary, takeaway, mode, resources}
 Changes need the header "X-Couch: 1" (blocks cross-site form posts).
 """
@@ -39,7 +43,7 @@ from pydantic import BaseModel, Field
 import offline
 import prompt
 import safety
-from schools import load as load_schools, public
+from schools import aliases as school_aliases, load as load_schools, public
 
 log = logging.getLogger("couch")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -55,6 +59,7 @@ COOLDOWN = float(os.getenv("LLM_COOLDOWN", "30"))         # after a failure, use
 MAX_STREAMS = int(os.getenv("MAX_STREAMS", "2"))          # this app's share of the model's slots
 QUEUE_WAIT = float(os.getenv("QUEUE_WAIT", "15"))         # wait for one of our slots before going offline
 SCHOOLS = load_schools(os.getenv("SCHOOLS_DIR", str(HERE / "schools")))   # refuses to start if one is broken
+ALIASES = school_aliases(SCHOOLS)     # old ids a saved browser session may still send
 NAME_RE = re.compile(r"^[^\W\d_](?:[^\W\d_]|[ '\-.]){0,29}$")
 MAX_USER_CHARS = 1500
 DISCLAIMER = ("The Couch is a simulator for reflection and fun, not a therapist, and nothing here is "
@@ -114,7 +119,7 @@ def _guard(request: Request):
 
 
 def _school(sid):
-    s = SCHOOLS.get(sid)
+    s = SCHOOLS.get(ALIASES.get(sid, sid))
     if not s:
         raise HTTPException(404, "Unknown therapist.")
     return s
@@ -127,6 +132,13 @@ def clean_name(name):
 
 def _history(body):
     return [{"role": m.role, "content": m.content.strip()} for m in body.messages if m.content.strip()]
+
+
+def _low(history):
+    """The person sounds low: in their last message or the one before it, so the act doesn't
+    snap back right after someone said they feel worthless."""
+    users = [m["content"] for m in history if m["role"] == "user"]
+    return any(safety.low_mood(u) for u in users[-2:])
 
 
 def _sse(event, data):
@@ -179,12 +191,14 @@ async def llm_json(messages, max_tokens, schema):
     return json.loads(r.json()["choices"][0]["message"]["content"])
 
 
-async def model_reply(school, history, name, flagged):
+async def model_reply(school, history, name, flagged, low=False):
     """The SSE stream for a model reply, falling back to the offline mind if the model fails."""
     speaker = school["therapist"]
     quotes = [q["text"] for q in school["quotes"]]
+    self_quotes = any(q.get("persona") for q in school["quotes"])
     yield _sse("meta", {"safety": [], "resources": False})
-    messages, info = prompt.build(school, history, name, PROMPT_TOKENS, flagged)
+    messages, info = prompt.build(school, history, name, PROMPT_TOKENS, flagged, low)
+    gentle = info["gentle"]
     raw, sent, why, started = "", "", None, time.monotonic()
     sem = model.sem()
     try:
@@ -196,7 +210,7 @@ async def model_reply(school, history, name, flagged):
             async with contextlib.aclosing(llm_stream(messages)) as pieces:
                 async for piece in pieces:
                     raw += piece
-                    shown, stop = prompt.visible(raw, name, speaker, quotes)
+                    shown, stop = prompt.visible(raw, name, speaker, quotes, self_quotes)
                     if shown != sent:
                         if shown.startswith(sent):
                             yield _sse("delta", {"t": shown[len(sent):]})
@@ -211,7 +225,7 @@ async def model_reply(school, history, name, flagged):
             why = type(e).__name__ if not isinstance(e, LLMError) else str(e)
         finally:
             sem.release()
-    final = prompt.dedupe(prompt.tidy(raw, name, speaker, quotes), history)
+    final = prompt.dedupe(prompt.tidy(raw, name, speaker, quotes, self_quotes), history, school["examples"])
     if final:
         model.ok()
         mode = "model"
@@ -221,10 +235,12 @@ async def model_reply(school, history, name, flagged):
         elif raw:
             why = "unusable"      # the model answered, but nothing it said survived the checks
             model.ok()
-        final, mode = offline.reply(school, history, name), "offline"
-    log.info("reply school=%s mode=%s why=%s prompt~%s tok kept=%s dropped=%s %.1fs",
-             school["id"], mode, why, info["tokens"], info["kept"], info["dropped"], time.monotonic() - started)
-    yield _sse("done", {"text": final, "mode": mode, "why": why if mode == "offline" else None, "resources": False})
+        final, mode = offline.reply(school, history, name, low, gentle), "offline"
+    log.info("reply school=%s mode=%s why=%s gentle=%s low=%s prompt~%s tok kept=%s dropped=%s %.1fs",
+             school["id"], mode, why, gentle, low, info["tokens"], info["kept"], info["dropped"],
+             time.monotonic() - started)
+    yield _sse("done", {"text": final, "mode": mode, "why": why if mode == "offline" else None, "resources": False,
+                        "gentle": gentle})
 
 
 def _single(events):
@@ -252,7 +268,7 @@ def icon():
 
 @app.get("/api/schools")
 def schools():
-    return {"schools": [public(s) for s in SCHOOLS.values()], "resources": safety.RESOURCES,
+    return {"schools": [public(s) for s in SCHOOLS.values()], "aliases": ALIASES, "resources": safety.RESOURCES,
             "disclaimer": DISCLAIMER}
 
 
@@ -292,16 +308,26 @@ async def reply(body: Chat, request: Request):
                         _sse("done", {"text": safety.respond(cats), "mode": "safety",
                                       "resources": True, "safety": cats})])
     flagged = any(safety.check(m["content"]) for m in history[:-1] if m["role"] == "user")
-    if offline.detect_intent(last) == "quote":
+    low = _low(history)
+    users = [m["content"] for m in history if m["role"] == "user"]
+    if school.get("playful") and (any("grief" in offline.detect_themes(u)[:1] for u in users[-3:])
+                                  or any(safety.low_mood(u) for u in users)):
+        # No comedy act over a bereavement, and once someone has sounded low the act stays off for
+        # the rest of the session: the 1.5B nihilist slipped back into "I'm not important in the
+        # grand scheme" the turn after "nobody would care if I disappeared".
+        low = True
+    gentle = prompt.gentle_mode(school, low, flagged)
+    if offline.detect_intent(last) == "quote" and not low:
         # quotes come from the school file (checked, with sources), never from the model's memory
         return _single([_sse("meta", {"safety": [], "resources": False}),
-                        _sse("done", {"text": offline.reply(school, history, name), "mode": "script",
-                                      "resources": False})])
+                        _sse("done", {"text": offline.reply(school, history, name, low, gentle), "mode": "script",
+                                      "resources": False, "gentle": gentle})])
     if not model.usable():
         return _single([_sse("meta", {"safety": [], "resources": False}),
-                        _sse("done", {"text": offline.reply(school, history, name), "mode": "offline",
-                                      "why": "none" if not LLM_URL else "cooldown", "resources": False})])
-    return StreamingResponse(model_reply(school, history, name, flagged),
+                        _sse("done", {"text": offline.reply(school, history, name, low, gentle), "mode": "offline",
+                                      "why": "none" if not LLM_URL else "cooldown", "resources": False,
+                                      "gentle": gentle})])
+    return StreamingResponse(model_reply(school, history, name, flagged, low),
                              media_type="text/event-stream", headers=SSE_HEADERS)
 
 
@@ -312,6 +338,8 @@ async def summary(body: Chat, request: Request):
     name = clean_name(body.name)
     history = _history(body)
     flagged = any(safety.check(m["content"]) for m in history if m["role"] == "user")
+    low = any(safety.low_mood(m["content"]) for m in history if m["role"] == "user")
+    gentle = prompt.gentle_mode(school, low, flagged)
     result, mode = None, "offline"
     if model.usable() and any(m["role"] == "user" for m in history):
         sem = model.sem()
@@ -321,7 +349,7 @@ async def summary(body: Chat, request: Request):
             sem = None
         if sem:
             try:
-                data = await llm_json(prompt.summary_messages(school, history, name, PROMPT_TOKENS),
+                data = await llm_json(prompt.summary_messages(school, history, name, PROMPT_TOKENS, gentle),
                                       MAX_TOKENS, prompt.SUMMARY_SCHEMA)
                 result = prompt.tidy_summary(data, name, school["therapist"])
                 model.ok()
@@ -334,7 +362,7 @@ async def summary(body: Chat, request: Request):
         if result:
             mode = "model"
     if not result:
-        fb = offline.summary(school, history, name)
+        fb = offline.summary(school, history, name, gentle)
         result = {"summary": fb["summary"], "takeaway": fb["takeaway"]}
     return {**result, "mode": mode, "resources": flagged,
             "safety_note": ("If any of what we talked about feels like too much to carry, please reach "

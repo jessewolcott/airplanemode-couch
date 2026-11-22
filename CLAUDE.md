@@ -1,6 +1,7 @@
 # The Couch (AirplaneMode app): notes for Claude
 
-A therapist simulator: pick a school of thought (Stoicism, Socialism, more as data files), talk,
+A therapist simulator: pick one of six therapists (the Empath, the Pragmatist, Stoicism, Ho Chi
+Minh's ethics, and two playful ones, the Nihilist and the Narcissist; more as data files), talk,
 get a streamed reply from the shared model, or from the rule-based "offline mind" without it.
 FastAPI app in `app.py`, one page in `static/index.html`, schools in `schools/*.json`.
 
@@ -16,17 +17,23 @@ python tests/test_couch.py           # tests (CI runs these before building); .v
 ```
 
 To try the real model: the platform dev stack runs `llm` (Qwen2.5-1.5B) on the `airplanemode`
-Docker network. `docker run --rm --network airplanemode -e LLM_URL=http://llm:8080 -p 8774:8000 airplanemode-couch:dev`.
+Docker network. Build under your own tag (the dev stack's own container uses `airplanemode-couch:dev`)
+and don't touch the stack's containers: `docker build -t airplanemode-couch:try .` then
+`docker run --rm --network airplanemode -e LLM_URL=http://llm:8080 -p 8774:8000 airplanemode-couch:try`.
 
 ## Files
 
 - `safety.py`: the deterministic crisis check and the fixed replies + resources. Runs on every
-  user message **before** anything else; a hit never reaches the model.
+  user message **before** anything else; a hit never reaches the model. Also `low_mood()`, the
+  softer signal (hopeless, worthless, "what's the point") that makes every therapist gentler and
+  makes the playful ones drop the act (`prompt.gentle_mode`, the school's `gentle` block).
 - `prompt.py`: prompt building and trimming to `PROMPT_TOKENS` (system prompt always kept, a
   running summary of dropped turns, a per-turn "lens" nudge last so the prefix stays cacheable),
   and output cleaning (`visible` while streaming, `tidy` at the end, `dedupe`).
 - `offline.py`: themes, intents, reflections, the no-repeat picker, the fallback summary.
-- `schools.py`: loading + validation of school files (the app refuses to start on a bad one).
+- `schools.py`: loading + validation of school files (the app refuses to start on a bad one),
+  including the optional `voice`, `replaces` (old ids -> `ALIASES`), `playful` + `playful_note` +
+  `gentle`, and `persona` quotes.
 
 ## Rules
 
@@ -40,9 +47,19 @@ Docker network. `docker run --rm --network airplanemode -e LLM_URL=http://llm:80
   (not bad answers) start a 30 s cooldown.
 - **Quotes come from the school files**, short, accurate, public-domain translations, with a
   source; mark your own wording `"paraphrase": true`. The model's quotes are dropped unless they
-  match the file; "give me a quote" is answered from the file.
+  match the file; "give me a quote" is answered from the file. Only a school with `persona`
+  quotes (the Narcissist) may quote itself ("As I always say, ..."); invented lines are only
+  ever attributed to the therapist, never to a real person.
+- **Playful profiles are safe first.** They drop the act for the rest of the session once
+  someone sounds low or was shown crisis resources, and while grief is in the last 3 messages. The Nihilist never says a life or a person doesn't
+  matter (`prompt.BLEAK` drops such sentences from any school). The Narcissist never names real
+  people and never claims a degree, licence or title. Mai (Ho Chi Minh's ethics) is not Ho Chi
+  Minh and stays off politics, governments, parties and war.
+- **Renaming a school:** add the old id to the new file's `replaces`; the API and the page map
+  saved sessions (socialism -> hochiminh is tested).
 - Reply stream protocol (SSE over POST): `meta`, `delta` {t}, `replace` {text}, `done` {text,
-  mode, why, resources}. The page treats `done.text` as final.
+  mode, why, resources, gentle}. The page treats `done.text` as final; `gentle` shows an "out of
+  character" chip.
 - Schools are data. New behaviour that every school needs goes in the schema
   (`schools.validate`) and the README table.
 - Page: relative URLs only (a test checks), no external anything, touch targets >= 44px.
@@ -52,9 +69,14 @@ Docker network. `docker run --rm --network airplanemode -e LLM_URL=http://llm:80
 - Real hardware: speed on the R6S (time to first word with a cold slot, ~800-token prefix),
   and whether `LLM_TIMEOUT` 45 s is right there.
 - Real phones. The page was driven in a phone-sized desktop browser through the platform's dev
-  stack (Caddy + Qwen2.5-1.5B): streaming, both schools and the safety card work there.
+  stack (Caddy + Qwen2.5-1.5B) for 0.1. The six-therapist roster (0.2.0) was tried through the API
+  against the same model; where the 1.5B model still falls short of each persona is in the 0.2.0
+  commit notes and the session report.
 
 ## Releasing
 
 Push a `vX.Y.Z` tag. CI tests, then publishes `ghcr.io/jessewolcott/airplanemode-couch:X.Y.Z`
 (arm64 + amd64). **Ask Jesse before pushing a release tag.** Released: 0.1.0 (pinned in the platform's `compose.yaml`).
+0.2.0 (six therapists, Robin replaced by Mai, low-mood switch) is committed but **not tagged yet**.
+When it is: bump the pin in the platform's `compose.yaml`, and update the platform's
+`portal/apps.json` description (it still says "a Stoic or a Socialist").

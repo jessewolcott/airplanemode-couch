@@ -57,7 +57,8 @@ STRONG = {
 }
 
 INTENTS = [
-    ("quote", re.compile(r"\b(?:quote|quotation|saying|what would (?:marcus|seneca|epictetus|marx|morris) say)\b")),
+    ("quote", re.compile(r"\b(?:quote|quotation|saying|what would (?:marcus|seneca|epictetus|ho chi minh|uncle ho|"
+                         r"rogers|carl rogers|william james|james|dewey|nietzsche|camus) say)\b")),
     ("technique", re.compile(r"\b(?:exercise|technique|practice|practise|tool|tip|tips|something to try)\b")),
     ("advice", re.compile(r"\b(?:what (?:should|do|can) i do|what do you (?:think|suggest|recommend)|any advice|"
                           r"advice|how do i|how can i|help me|what now|what would you do)\b")),
@@ -68,7 +69,7 @@ INTENTS = [
     ("goodbye", re.compile(r"^(?:ok(?:ay)?,? )?(?:bye|goodbye|good night|goodnight|see you|gotta go|i have to go|"
                            r"that's all|talk later|ttyl)\b")),
     ("greeting", re.compile(r"^(?:hi|hello|hey|hiya|howdy|yo|good (?:morning|afternoon|evening)|greetings)\b"
-                            r"[\s!.,]*(?:there|again|aurelia|robin)?[\s!.,]*$")),
+                            r"[\s!.,]*(?:there|again|[a-z]+)?[\s!.,]*$")),   # "hi mai", "hey sterling"
     ("unsure", re.compile(r"^(?:i )?(?:don't know|dunno|idk|not sure|no idea|i'm not sure|maybe|"
                           r"i guess|hard to say|nothing really|nothing|whatever)\W*$")),
 ]
@@ -95,6 +96,39 @@ GENERIC_ACK = {
               "Money pressure is exhausting."],
     "general": ["I hear you.", "Thank you for sharing that.", "That sounds like a lot.", "Mm, I'm with you."],
 }
+
+# When the person sounds low (safety.low_mood), every school answers with its gentlest lines.
+GENTLE_ACK = [
+    "I'm really glad you told me that.", "That sounds heavy, and I'm sorry you're carrying it.",
+    "Thank you for saying it out loud. That takes something.", "That sounds really hard.",
+    "I'm here, and I'm listening.",
+]
+GENTLE_ANGLES = [
+    "Feeling this low doesn't mean anything is wrong with who you are; it means things have been hard.",
+    "You don't have to make sense of all of it right now. Just saying it is enough for this moment.",
+    "Feelings this heavy are worth sharing with someone you trust, not only with an app.",
+    "Be as kind to yourself tonight as you would be to a friend who said the same thing.",
+]
+GENTLE_QUESTIONS = [
+    "What would help a little, even just for the next hour?",
+    "Is there someone you trust you could tell how you're feeling?",
+    "How long have you been feeling this way?",
+    "What's been the hardest part?",
+]
+GENTLE_TALK = {
+    "thanks": ["I'm glad you're still talking. If it gets heavier, please reach out to someone you trust or a crisis line. "
+               "Is there anything else on your mind?",
+               "Thank you for staying with it. Who could you check in with today?"],
+    "goodbye": ["Take good care of yourself{, name}. If things feel heavy later, please reach out to someone you trust "
+                "or a crisis line (Real help, in the menu, has numbers).",
+                "Go gently{, name}. You don't have to carry this on your own; Real help in the menu has people to call."],
+}
+GENTLE_SUMMARY = [
+    "You brought {themes} today, and some of it sounded really heavy. Thank you for putting it into words.",
+    "We talked about {themes}. Some of what you said sounded hard to carry, and it took something to say it.",
+]
+GENTLE_FAREWELL = ["Please be kind to yourself, and let someone you trust know how you're doing.",
+                   "Go gently. If it gets heavier, Real help in the menu has people you can talk to."]
 
 # Reflect the person's words back, with pronouns swapped: "I feel stuck in my job" -> "you feel stuck in your job".
 REFLECT_PATTERNS = [
@@ -196,9 +230,34 @@ def quote_line(q):
     return f"“{q['text']}” — {q['source']}."
 
 
-def reply(school, history, name=""):
-    """A reply to the last user message in history ([{role, content}, ...])."""
+def gentle_reply(school, history, name="", text=""):
+    """Low mood: plain, kind words. A playful school uses its own gentle block; others their usual
+    questions for the theme, after a gentle acknowledgement."""
+    rng = random.Random(_seed(school["id"], history, "gentle|" + text))
+    used = _used_text(history[:-1])
+    intent = detect_intent(text)
+    if intent in GENTLE_TALK:
+        return fill(_pick(GENTLE_TALK[intent], used, rng, name), name)
+    g = school.get("gentle") if school.get("playful") else None
+    angles = (g["angles"] if g else []) + GENTLE_ANGLES
+    questions = g["questions"] if g else GENTLE_QUESTIONS
+    mirror = reflect(text, rng) if rng.random() < 0.5 else None
+    return f"{mirror or _pick(GENTLE_ACK, used, rng)} {_pick(angles, used, rng)} {_pick(questions, used, rng)}"
+
+
+def reply(school, history, name="", low=False, gentle=False):
+    """A reply to the last user message in history ([{role, content}, ...]).
+
+    low: the person sounds low (any school answers gently). gentle: a playful school has dropped
+    its act (low now, or crisis resources shown earlier) and stays out of character."""
     text = history[-1]["content"] if history else ""
+    if low or gentle:
+        if gentle and detect_intent(text) == "quote":
+            q = [x for x in school["quotes"] if not x.get("persona")] or school["quotes"]
+            rng = random.Random(_seed(school["id"], history, text))
+            return f"{quote_line(rng.choice(q))}\n\n{_pick(GENTLE_QUESTIONS, _used_text(history[:-1]), rng)}"
+        if low or detect_intent(text) not in ("quote", "technique", "advice"):
+            return gentle_reply(school, history, name, text)
     rng = random.Random(_seed(school["id"], history, text))
     used = _used_text(history[:-1])
     turn = sum(1 for m in history if m.get("role") == "user")
@@ -257,8 +316,8 @@ def reply(school, history, name=""):
     return out
 
 
-def summary(school, history, name=""):
-    """End-of-session summary + one takeaway, without the model."""
+def summary(school, history, name="", gentle=False):
+    """End-of-session summary + one takeaway, without the model (gentle: plain, kind words)."""
     user_text = " ".join(m.get("content", "") for m in history if m.get("role") == "user")
     counts = {}
     for m in history:
@@ -272,12 +331,19 @@ def summary(school, history, name=""):
         listed = listed.replace("general", "what's on your mind")
     else:
         listed = "what's on your mind"
-    line = fill(rng.choice(school["closing"]["summary_lines"]), name, themes=listed)
-    farewell = rng.choice(school["closing"]["farewells"])
+    line = fill(rng.choice(GENTLE_SUMMARY if gentle else school["closing"]["summary_lines"]), name, themes=listed)
+    farewell = rng.choice(GENTLE_FAREWELL if gentle else school["closing"]["farewells"])
     top = themes[0] if themes else "general"
     techs = [t for t in school["techniques"] if top in t["themes"]] or \
             [t for t in school["techniques"] if "general" in t["themes"]] or school["techniques"]
     t = rng.choice(techs)
     if not user_text.strip():
         line = "We didn't get far today, and that's fine. The couch will be here."
-    return {"summary": f"{line} {farewell}", "takeaway": f"{t['name'].rstrip('?')}: {t['how']}", "themes": themes}
+    takeaway = f"{t['name'].rstrip('?')}: {t['how']}"
+    if gentle:
+        takeaway = GENTLE_TAKEAWAY
+    return {"summary": f"{line} {farewell}", "takeaway": takeaway, "themes": themes}
+
+
+GENTLE_TAKEAWAY = ("One kind thing: send a message to someone you trust and tell them, even briefly, how you've been "
+                   "feeling. If it gets heavier, Real help in the menu lists people you can call any time.")

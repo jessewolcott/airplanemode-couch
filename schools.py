@@ -2,6 +2,12 @@
 
 load() validates every file against SCHEMA-like rules below and refuses to start if one is
 broken, so a typo shows up in CI rather than as a blank card on the box.
+
+Optional fields: `voice` (how the per-turn nudge asks the model to sound), `replaces` (old
+school ids a saved browser session may still use), and for comedy profiles `playful` +
+`playful_note` + `gentle` (the plain, kind voice used instead of the act when the person
+sounds low or has been shown crisis resources). Quotes may be `persona` quotes: invented
+lines the therapist says about themselves, attributed to the therapist by name.
 """
 import json
 import re
@@ -129,7 +135,50 @@ def validate(d, filename_id=None):
         raise SchoolError("every closing.summary_lines entry needs {themes}")
     if "order" in d and not isinstance(d["order"], int):
         raise SchoolError("order must be a number")
+    _optional(d)
     return d
+
+
+def _optional(d):
+    therapist = d["therapist"].strip()
+    for q in d["quotes"]:
+        if "persona" in q:
+            if not isinstance(q["persona"], bool):
+                raise SchoolError("quote persona must be true or false")
+            if q["persona"] and not q["source"].startswith(therapist):
+                # an invented line must be visibly the therapist's own, never a real person's
+                raise SchoolError(f"a persona quote's source must start with {therapist!r}: {q['source']}")
+            if q["persona"] and q.get("paraphrase"):
+                raise SchoolError("a persona quote is the therapist's own line: no paraphrase flag")
+    if "voice" in d and (not isinstance(d["voice"], str) or not d["voice"].strip() or len(d["voice"]) > 300):
+        raise SchoolError("voice must be text under 300 characters")
+    if "replaces" in d:
+        if not isinstance(d["replaces"], list) or not all(isinstance(r, str) and ID_RE.match(r) for r in d["replaces"]):
+            raise SchoolError("replaces must be a list of old school ids")
+        if d["id"] in d["replaces"]:
+            raise SchoolError("a school can't replace itself")
+    playful = d.get("playful", False)
+    if not isinstance(playful, bool):
+        raise SchoolError("playful must be true or false")
+    if playful:
+        note = d.get("playful_note")
+        if not isinstance(note, str) or not note.strip() or len(note) > 140:
+            raise SchoolError("a playful school needs playful_note: one line (under 140 characters) on what to expect")
+        if "gentle" not in d:
+            raise SchoolError("a playful school needs a gentle block: the plain, kind voice for when someone is low")
+    if "gentle" in d:
+        g = d["gentle"]
+        if not isinstance(g, dict):
+            raise SchoolError("gentle must be an object")
+        sp = g.get("system_prompt")
+        if not isinstance(sp, str) or not 200 <= len(sp) <= 1500:
+            raise SchoolError("gentle.system_prompt should be 200-1500 characters")
+        _strings(g.get("angles"), "gentle.angles", 3)
+        _strings(g.get("questions"), "gentle.questions", 3)
+        if any("?" in a for a in g["angles"]):
+            raise SchoolError("gentle.angles are statements")
+        if not all(q.rstrip().endswith("?") for q in g["questions"]):
+            raise SchoolError("gentle.questions should be questions")
 
 
 def load(folder):
@@ -143,13 +192,26 @@ def load(folder):
         schools[d["id"]] = d
     if not schools:
         raise SchoolError(f"no schools found in {folder}")
+    aliases(schools)    # checks that old ids don't clash
     return dict(sorted(schools.items(), key=lambda kv: (kv[1].get("order", 100), kv[0])))
+
+
+def aliases(schools):
+    """{old id: current id} from the schools' `replaces` lists (a renamed school keeps old sessions working)."""
+    out = {}
+    for sid, d in schools.items():
+        for old in d.get("replaces", []):
+            if old in schools or old in out:
+                raise SchoolError(f"{sid}: replaces {old!r}, which is already a school or replaced by another")
+            out[old] = sid
+    return out
 
 
 def public(d):
     """What the page needs to show a school (no prompts, no offline material)."""
     return {k: d[k] for k in ("id", "name", "therapist", "tagline", "description", "accent", "accent2",
                               "avatar", "opening_lines", "handoff_lines")} | {
+        "playful": bool(d.get("playful")), "playful_note": d.get("playful_note", ""),
         "techniques": [{"name": t["name"], "how": t["how"]} for t in d["techniques"]]}
 
 
