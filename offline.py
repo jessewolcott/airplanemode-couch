@@ -1,6 +1,6 @@
 """The "offline mind": a rule-based responder for when the model isn't there.
 
-Used when LLM_URL is empty (the GL.iNet profile), the model is unreachable, or it's too busy
+Used when LLM_URL is empty, the model is unreachable, or it's too busy
 to answer in time. It is ELIZA's grandchild: it spots themes (work, family, sleep, ...) and a
 few intents (hello, thanks, "what should I do?"), reflects the person's own words back, and
 adds the school's angle, a question, sometimes a quote or a technique, all from the school's

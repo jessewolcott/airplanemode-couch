@@ -63,7 +63,7 @@ logs no message text: each message is sent with the recent turns, answered, and 
   they were its own are dropped, anything after a question that ends a paragraph is cut, and
   replies are capped at about 150 words on a sentence boundary.
   Requests for a quote are answered from the school file, never from the model.
-- **The offline mind.** With no model (`LLM_URL` empty, e.g. the GL.iNet profile), or when
+- **The offline mind.** With no model (`LLM_URL` empty), or when
   it's unreachable, loading, or too busy to start answering within `LLM_TIMEOUT`, a rule-based
   responder answers: it spots themes (work, family, relationships, anxiety, sleep, travel,
   loneliness, anger, grief, money) and intents (hello, thanks, "what should I do?", "give me a
