@@ -37,8 +37,8 @@ on with Mai (the old id `socialism` maps to `hochiminh`).
 ## Using it
 
 1. Choose a therapist (and, if you like, give a first name).
-2. Talk. Replies stream in word by word; the on-board model is slow (5–15 words a second on
-   the R6S), so there's a typing indicator while it thinks.
+2. Talk. Replies stream in word by word; the on-board model is slow (an estimated 5–15 words a second
+   on the R6S, not yet measured), so there's a typing indicator while it thinks.
 3. The menu (⋯) has **End session** (a short summary and one thing to try, in the school's
    style), **Switch therapist** (the new one picks up where you were), **Export as text**,
    **Real help** (crisis lines) and **Forget this conversation**.
@@ -136,7 +136,8 @@ The app refuses to start if a file is incomplete, and the tests check every file
 ## Running it
 
 **On the box:** the platform repo runs the released image at `/couch/`, with `LLM_URL`
-pointing at the shared model.
+pointing at the shared model. It isn't installed on the GL.iNet profile, which has no model
+(platform decision 0017).
 
 **On its own, for development:**
 
