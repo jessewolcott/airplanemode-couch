@@ -1,0 +1,17 @@
+# AirplaneMode app manifest. See the platform repo: docs/app-contract.md
+id: couch
+name: The Couch
+description: A therapist simulator for the long way round. Talk things through with a Stoic or a socialist; a toy for reflection, not therapy.
+image: ghcr.io/jessewolcott/airplanemode-couch
+port: 8000
+path: /couch/
+memory: 64m           # no files, no state: conversations stay in each browser
+needs:
+  llm: optional       # without it, the "offline mind" answers with reflections, questions and quotes from the school files
+env:
+  LLM_URL: URL of the shared model (OpenAI-compatible chat API). Empty = offline mind only.
+  LLM_TIMEOUT: Seconds to wait for the model's first word before answering with the offline mind (default 45).
+  MAX_TOKENS: Longest reply from the model, in tokens (default 220).
+  PROMPT_TOKENS: Token budget for what's sent to the model (default 1600; the 4096 context is shared by 2 slots).
+  MAX_STREAMS: Replies this app streams from the model at once (default 2); others wait up to QUEUE_WAIT seconds (default 15).
+  SCHOOLS_DIR: Folder of school files to load instead of the bundled schools/ (for adding schools without a new image).
