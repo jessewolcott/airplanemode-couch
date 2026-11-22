@@ -119,6 +119,13 @@ def lens(school, history, low=False, gentle=False):
                 f"gentle: no challenging and no teaching. An angle that may fit, softly: {angle}) "
                 f"Now answer their last message as {who}: warm and kind, 2 to 5 sentences, ending with one "
                 "gentle question.")
+    if school.get("moves"):
+        # One move per reply, in turn: a small model told "use one of these tools" uses all of them
+        moves = school["moves"]
+        move = moves[(len(users) - 1) % len(moves)]
+        return (f"(Private note, not something the person said: an angle {who} might take: {angle}) "
+                f"Now answer their last message as {who}: {school.get('voice', DEFAULT_VOICE)}. "
+                f"This reply's move: {move} 2 to 4 sentences, and only one question, at the end.")
     return (f"(Private note, not something the person said: an angle {who} might take: {angle}) "
             f"Now answer their last message as {who}: {school.get('voice', DEFAULT_VOICE)}, "
             "2 to 5 sentences, ending with one question.")

@@ -3,7 +3,8 @@
 load() validates every file against SCHEMA-like rules below and refuses to start if one is
 broken, so a typo shows up in CI rather than as a blank card on the box.
 
-Optional fields: `voice` (how the per-turn nudge asks the model to sound), `replaces` (old
+Optional fields: `voice` (how the per-turn nudge asks the model to sound), `moves` (one move
+per reply, taken in turn by the nudge), `replaces` (old
 school ids a saved browser session may still use), and for comedy profiles `playful` +
 `playful_note` + `gentle` (the plain, kind voice used instead of the act when the person
 sounds low or has been shown crisis resources). Quotes may be `persona` quotes: invented
@@ -152,6 +153,11 @@ def _optional(d):
                 raise SchoolError("a persona quote is the therapist's own line: no paraphrase flag")
     if "voice" in d and (not isinstance(d["voice"], str) or not d["voice"].strip() or len(d["voice"]) > 300):
         raise SchoolError("voice must be text under 300 characters")
+    if "moves" in d:
+        mv = d["moves"]
+        if (not isinstance(mv, list) or not 2 <= len(mv) <= 8
+                or not all(isinstance(m, str) and m.strip() and len(m) <= 300 for m in mv)):
+            raise SchoolError("moves must be 2 to 8 texts, each under 300 characters")
     if "replaces" in d:
         if not isinstance(d["replaces"], list) or not all(isinstance(r, str) and ID_RE.match(r) for r in d["replaces"]):
             raise SchoolError("replaces must be a list of old school ids")

@@ -133,6 +133,10 @@ def test_school_schema_rejects_broken_files():
     assert broken(lambda d: d.update(avatar='<svg onload="alert(1)"></svg>'))
     assert broken(lambda d: d.update(avatar="<svg><script>x</script></svg>"))
     assert broken(lambda d: d.update(id="hochiminh"))       # must match the file name
+    assert broken(lambda d: d.update(moves=["only one"]))
+    assert broken(lambda d: d.update(moves=["fine", "x" * 301]))
+    assert broken(lambda d: d.update(moves="scaling"))
+    assert not broken(lambda d: d.update(moves=["scaling.", "exceptions."]))
     assert broken(lambda d: d["techniques"][0].update(themes=["cats"]))
     assert broken(lambda d: d["small_talk"].pop("greeting"))
     assert broken(lambda d: d["closing"].update(summary_lines=["no placeholder", "none here"]))
@@ -214,6 +218,22 @@ def test_lens_uses_the_schools_angle_for_the_theme():
          {"role": "user", "content": "yes"}]
     msgs, _ = prompt.build(STOIC, h, "", 1600)
     assert any(a in msgs[-1]["content"] for a in STOIC["reflections"]["grief"]["angles"])
+
+
+def test_lens_takes_the_schools_moves_in_turn():
+    quinn = couch.SCHOOLS["pragmatist"]
+    moves = quinn["moves"]
+    h = []
+    for i in range(len(moves) + 1):
+        h += [{"role": "user", "content": "work is a lot"}]
+        nudge = prompt.build(quinn, h, "", 1600)[0][-1]["content"]
+        assert moves[i % len(moves)] in nudge and "only one question" in nudge, i
+        assert not any(m in nudge for m in moves if m != moves[i % len(moves)])
+        h += [{"role": "assistant", "content": f"Reply {i}."}]
+    # gentle and low turns don't get a move
+    low = prompt.lens(quinn, [{"role": "user", "content": "I feel worthless"}], low=True)
+    assert not any(m in low for m in moves)
+    assert all(not s.get("moves") or s["id"] == "pragmatist" for s in couch.SCHOOLS.values())
 
 
 def test_flagged_history_adds_safety_note():

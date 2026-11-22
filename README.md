@@ -12,10 +12,10 @@ lines instead of the model, whichever therapist you picked (see [Safety](#safety
 
 <p align="center">
   <img src="docs/screenshots/choose.png" width="230" alt="Choosing a therapist from the six on the start screen">
-  <img src="docs/screenshots/chat.png" width="230" alt="A session, replying through the on-board model">
+  <img src="docs/screenshots/chat.png" width="230" alt="A session with Sterling, the Narcissist, replying through the on-board model">
 </p>
 
-<sub>From a laptop browser at phone size, with the dev stack's Qwen2.5-1.5B; not yet tested on real phones or hardware.</sub>
+<sub>From a laptop browser at phone size, with the dev stack's Gemma 4 E2B; not yet tested on real phones or hardware.</sub>
 
 ## The therapists
 
@@ -25,7 +25,7 @@ meets a gentle listener before a joke; the two playful ones last, tagged *Playfu
 | Therapist | Voice | Draws on |
 |---|---|---|
 | **Mira · The Empath** | Soft, warm, feelings first. Reflects the feeling under your words, names emotions gently, rarely gives advice. | Carl Rogers' person-centred approach (empathy, unconditional positive regard, genuineness; paraphrased, his books aren't public domain). Quotes Shakespeare, George Eliot, Jane Austen, Kahlil Gibran. |
-| **Quinn · The Pragmatist** | Brisk, concrete, kind. One line for the feeling, then: what works? Ends on a ten-minute next step. | Solution-focused brief therapy (scaling 0–10, exceptions, the miracle question, "if it works, do more of it"), William James and John Dewey (public-domain quotes). |
+| **Quinn · The Pragmatist** | Brisk, concrete, kind. One line for the feeling, then one tool per reply, in turn: a 0–10 scale, a time it was easier, a ten-minute step, the miracle question. | Solution-focused brief therapy (scaling 0–10, exceptions, the miracle question, "if it works, do more of it"), William James and John Dewey (public-domain quotes). |
 | **Aurelia · Stoicism** | Calm and warm. Sorts what's in your control from what isn't, questions the story you tell about events. | Epictetus, Marcus Aurelius, Seneca (George Long and Richard Gummere's public-domain translations): the view from above, negative visualization, amor fati, an evening review. |
 | **Mai · Ho Chi Minh's ethics** | Patient, plain-spoken, like a wise aunt. Small daily improvements, one practical step. | Ho Chi Minh's personal teachings: diligence, thrift, integrity, uprightness (cần, kiệm, liêm, chính), kind self-criticism, simple living, "ten years to grow trees, a hundred to cultivate people", learning from everyone, and the calm resolve of the *Prison Diary* poems. All quotes paraphrased (translations aren't public domain). Mai isn't Ho Chi Minh and never talks politics, governments, parties or war. |
 | **Nico · The Nihilist** *(playful)* | Deadpan. Nothing has built-in meaning, so the stakes are lower than they feel and you're free to choose. Always lands on freedom, never on bleakness. | Nietzsche (create your own values), Camus' happy Sisyphus (paraphrased), Ecclesiastes (King James), the pale blue dot. |
@@ -125,6 +125,7 @@ Copy `schools/stoicism.json` (or `schools/narcissist.json` for a playful one) an
 | `small_talk` | `greeting`, `thanks`, `goodbye`, `unsure`, `who`, `advice`, `short` (at least 2 each) |
 | `closing` | `style` (for the model's summary), `summary_lines` (with `{themes}`), `farewells` |
 | `voice` *(optional)* | how the per-turn nudge asks the model to sound (under 300 characters); default "warm and specific to what they said" |
+| `moves` *(optional)* | 2–8 moves (under 300 characters each), one per reply, taken in turn by the nudge. Quinn's are his tools: a 0–10 scale, a time it was easier, a ten-minute step, the miracle question, ... (a small model told "pick one tool" uses them all at once) |
 | `replaces` *(optional)* | old school ids that should open this school (for renames; saved sessions keep working) |
 | `playful`, `playful_note` *(optional)* | a comedy profile: tagged *Playful* on the start screen with the one-line note (under 140 characters). Requires `gentle` |
 | `gentle` *(required if playful)* | `system_prompt` (200–1500 characters), `angles` and `questions` (3+ each): the plain, kind voice used instead of the act when the person sounds low |

@@ -32,7 +32,7 @@ and don't touch the stack's containers: `docker build -t airplanemode-couch:try 
   and output cleaning (`visible` while streaming, `tidy` at the end, `dedupe`).
 - `offline.py`: themes, intents, reflections, the no-repeat picker, the fallback summary.
 - `schools.py`: loading + validation of school files (the app refuses to start on a bad one),
-  including the optional `voice`, `replaces` (old ids -> `ALIASES`), `playful` + `playful_note` +
+  including the optional `voice`, `moves` (one per reply, rotated by `prompt.lens`), `replaces` (old ids -> `ALIASES`), `playful` + `playful_note` +
   `gentle`, and `persona` quotes.
 
 ## Rules
@@ -71,8 +71,9 @@ and don't touch the stack's containers: `docker build -t airplanemode-couch:try 
 - Real phones. The page was driven in a phone-sized desktop browser through the platform's dev
   stack (Caddy + Qwen2.5-1.5B) for 0.1. The six-therapist roster (0.2.0) was tried through the API
   against Qwen2.5-1.5B, then against Gemma 4 E2B (42 scripted conversations): on Gemma the
-  playful pair hold character and drop it when they should; the Pragmatist stacked questions
-  until `tidy` kept only the last one (he now rarely uses his scaling/miracle tools).
+  playful pair hold character and drop it when they should; the Pragmatist stacked all his
+  tools into one reply until he got `moves` (one tool per reply, in turn; `tidy` also keeps
+  only the last question).
 
 ## Releasing
 
