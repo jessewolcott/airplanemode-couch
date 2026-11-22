@@ -51,9 +51,10 @@ Docker network. `docker run --rm --network airplanemode -e LLM_URL=http://llm:80
 
 - Real hardware: speed on the R6S (time to first word with a cold slot, ~800-token prefix),
   and whether `LLM_TIMEOUT` 45 s is right there.
-- The page has not been driven in a real phone browser yet (streaming via fetch + ReadableStream).
+- Real phones. The page was driven in a phone-sized desktop browser through the platform's dev
+  stack (Caddy + Qwen2.5-1.5B): streaming, both schools and the safety card work there.
 
 ## Releasing
 
 Push a `vX.Y.Z` tag. CI tests, then publishes `ghcr.io/jessewolcott/airplanemode-couch:X.Y.Z`
-(arm64 + amd64). **Ask Jesse before pushing a release tag.** Not released yet.
+(arm64 + amd64). **Ask Jesse before pushing a release tag.** Released: 0.1.0 (pinned in the platform's `compose.yaml`).

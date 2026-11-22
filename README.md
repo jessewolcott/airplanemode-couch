@@ -10,7 +10,12 @@ It runs on the box's shared language model, and it still works (more simply) wit
 prescribes, and anything that sounds like a crisis gets a fixed, caring reply with real crisis
 lines instead of the model (see [Safety](#safety)).
 
-Screenshots: to come.
+<p align="center">
+  <img src="docs/screenshots/choose.png" width="230" alt="Choosing a therapist: Aurelia (Stoicism) or Robin (Socialism)">
+  <img src="docs/screenshots/chat.png" width="230" alt="A session with Robin, replying through the on-board model">
+</p>
+
+<sub>From a laptop browser at phone size, with the dev stack's Qwen2.5-1.5B; not yet tested on real phones or hardware.</sub>
 
 ## The therapists
 
