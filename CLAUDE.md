@@ -14,6 +14,7 @@ other app built around the shared model.
 ```powershell
 docker compose up -d --build         # standalone dev: http://localhost:8774 (offline mind unless LLM_URL is set)
 python tests/test_couch.py           # tests (CI runs these before building); .venv has the pins
+node tests/test_format.mjs           # the page's reply formatting (*italic*/**bold**), run from index.html
 ```
 
 To try the real model: the platform dev stack runs `llm` (Gemma 4 E2B since platform decision 0018) on the `airplanemode`
@@ -63,6 +64,8 @@ and don't touch the stack's containers: `docker build -t airplanemode-couch:try 
 - Schools are data. New behaviour that every school needs goes in the schema
   (`schools.validate`) and the README table.
 - Page: relative URLs only (a test checks), no external anything, touch targets >= 44px.
+  Replies and session notes render *italic*/**bold** (`inline()` in the page: escape first,
+  then add only balanced `<em>`/`<strong>`); safety replies and user text are never formatted.
 
 ## Untested
 

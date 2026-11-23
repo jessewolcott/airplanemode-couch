@@ -26,6 +26,9 @@ jobs:
           pip install -r requirements.txt   # includes httpx (FastAPI TestClient needs it too)
           python tests/test_couch.py
 
+      - name: Reply formatting tests (runs the page's own code under Node)
+        run: node tests/test_format.mjs
+
       - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
 
