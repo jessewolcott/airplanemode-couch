@@ -114,15 +114,15 @@ mind, but no cooldown starts, so the next phone still tries the model (tested:
 ### `llm_stream()` (`app.py:152-182`)
 
 POST `{LLM_URL}/v1/chat/completions` with `max_tokens MAX_TOKENS, temperature 0.6, top_p 0.9,
-repeat_penalty 1.1, cache_prompt true, stream true, stop ["<end_of_turn>", "\nUser:",
-"\nClient:", "\nHuman:", "\nYou:"]`. Non-200 -> `LLMError("HTTP n")`. Reads lines with
+repeat_penalty 1.1, cache_prompt true, stream true, stop ["<end_of_turn>", "<turn|>", "<|turn>",
+"\nUser:", "\nClient:", "\nHuman:", "\nYou:"]`. Non-200 -> `LLMError("HTTP n")`. Reads lines with
 `asyncio.wait_for`: `LLM_TIMEOUT` until the first non-empty content piece, then
 `GAP_TIMEOUT` per line. Ignores non-`data:` lines, stops at `[DONE]` or a `finish_reason`,
 raises `LLMError("bad stream chunk")` on unparsable JSON. The shared `httpx.AsyncClient`
 (`app.py:70`) has `Timeout(LLM_TIMEOUT, connect=5)`; tests replace it.
 
-`<end_of_turn>` is Gemma's end-of-turn token (it replaced Qwen's `<|im_end|>` after decision
-0018). llama.cpp normally stops on the model's own end-of-turn token anyway; the stop string
+`<end_of_turn>` is Gemma 3's end-of-turn token (it replaced Qwen's `<|im_end|>` after decision
+0018); Gemma 4's template uses `<|turn>role ... <turn|>`, so those two were added (decision 0020). llama.cpp normally stops on the model's own end-of-turn token anyway; the stop string
 is a backstop in case it leaks as text. The `\nUser:` etc. strings cut role-play whatever the
 model.
 

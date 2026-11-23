@@ -91,7 +91,8 @@ Below that threshold there's a softer **low mood** check (`safety.low_mood`: hop
 worthless, "what's the point", "nobody would care", feeling empty or numb, "I hate myself", ...).
 No card is shown, but:
 
-- every therapist is asked to be especially gentle for that turn (no challenging, no teaching);
+- every therapist is asked to be especially gentle for that turn (no challenging, no teaching, no
+  rating scales), and to mention someone they trust or a crisis line if it sounds serious;
 - the **playful** ones drop the act: the Narcissist and the Nihilist switch to a plain, kind
   system prompt (their school file's `gentle` block), lose their comic examples, and the
   offline mind uses only gentle lines. The reply carries an *out of character* chip, and they

@@ -30,7 +30,7 @@ LOW_NOTE = ("Right now the person sounds low. Be especially gentle and kind. Nev
             "they say about themselves, or that nobody would care or notice: gently say that they matter. "
             "If it sounds serious, mention talking to someone they trust or a crisis line.")
 DEFAULT_VOICE = "warm and specific to what they said"
-CHARS_PER_TOKEN = 3.2      # conservative for English; measured on the earlier Qwen model, not re-measured on Gemma 4 E2B
+CHARS_PER_TOKEN = 3.2      # conservative: Gemma 4 E2B measured ~4.3 chars/token on these prompts (decision 0020), so ~1600 est. = ~1200 real
 PER_MESSAGE = 6            # chat-template overhead per message
 MAX_TURNS = 12             # never send more than this many recent messages, however short
 SUMMARY_CHARS = 320
@@ -116,9 +116,11 @@ def lens(school, history, low=False, gentle=False):
     angle = angles[len(users) % len(angles)]
     if low:
         return ("(Private note, not something the person said: they sound low right now, so be especially "
-                f"gentle: no challenging and no teaching. An angle that may fit, softly: {angle}) "
+                f"gentle: no challenging, no teaching, no rating scales and no exercises. An angle that may fit, "
+                f"softly: {angle}) "
                 f"Now answer their last message as {who}: warm and kind, 2 to 5 sentences, ending with one "
-                "gentle question.")
+                "gentle question. If it sounds serious, mention that talking to someone they trust or a "
+                "crisis line can help.")
     if school.get("moves"):
         # One move per reply, in turn: a small model told "use one of these tools" uses all of them
         moves = school["moves"]
@@ -193,7 +195,8 @@ RISKY_STARTS = ("as an ai", "as an a.i", "as a language model", "as an artificia
                 "i'm an ai", "i am an ai", "i'm just an ai", "i am just an ai", "i'm only an ai",
                 "i'm a licensed", "i am a licensed", "as a licensed", "as your therapist", "as a therapist")
 ROLE_WORDS = r"user|client|patient|human|person|me|you|q|a|therapist|assistant|counsel+or"
-SPECIAL = re.compile(r"<\|[a-z_]+\|>|<\/?s>|\[/?INST\]", re.I)
+# chat-template tokens written out as text: Qwen <|im_end|>, Gemma 3 <end_of_turn>, Gemma 4 <|turn> / <turn|>
+SPECIAL = re.compile(r"<\|[a-z_]+\|>|<\|?(?:turn|start_of_turn|end_of_turn)\|?>|<\/?s>|\[/?INST\]", re.I)
 
 
 def _stop_re(name):

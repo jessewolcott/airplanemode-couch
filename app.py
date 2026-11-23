@@ -153,7 +153,7 @@ async def llm_stream(messages):
     """Yield the reply's text pieces as llama.cpp streams them. Raises LLMError / timeouts."""
     body = {"messages": messages, "max_tokens": MAX_TOKENS, "temperature": 0.6, "top_p": 0.9,
             "repeat_penalty": 1.1, "cache_prompt": True, "stream": True,
-            "stop": ["<end_of_turn>", "\nUser:", "\nClient:", "\nHuman:", "\nYou:"]}
+            "stop": ["<end_of_turn>", "<turn|>", "<|turn>", "\nUser:", "\nClient:", "\nHuman:", "\nYou:"]}
     async with client.stream("POST", f"{LLM_URL}/v1/chat/completions", json=body) as r:
         if r.status_code != 200:
             raise LLMError(f"HTTP {r.status_code}")

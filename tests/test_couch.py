@@ -233,6 +233,9 @@ def test_lens_takes_the_schools_moves_in_turn():
     # gentle and low turns don't get a move
     low = prompt.lens(quinn, [{"role": "user", "content": "I feel worthless"}], low=True)
     assert not any(m in low for m in moves)
+    # Gemma 4 E2B's Quinn still asked "where 10 is feeling completely worthless" on a low turn,
+    # and the low lens (unlike the gentle one) never pointed to a crisis line (decision 0020)
+    assert "no rating scales" in low and "crisis line" in low
     assert all(not s.get("moves") or s["id"] == "pragmatist" for s in couch.SCHOOLS.values())
 
 
@@ -271,6 +274,9 @@ def test_tidy_length_cap_and_fragments():
     assert prompt.tidy("That sounds like a long day at work. What part of it was yours to") == \
         "That sounds like a long day at work."
     assert prompt.tidy("") == "" and prompt.tidy("Ok") == "" and prompt.tidy("<|im_end|>") == ""
+    # Gemma 4 E2B's turn markers, if they ever come through as text, end the reply
+    assert prompt.tidy("That sounds hard. What happened next?<turn|>\n<|turn>user\nI lied.") == "That sounds hard. What happened next?"
+    assert prompt.tidy("That sounds hard. What happened next?<end_of_turn>more") == "That sounds hard. What happened next?"
     assert prompt.tidy("**Well,** that is hard. What now?") == "Well, that is hard. What now?"
     assert prompt.tidy("That is hard. 2 to 5 sentences, then one question. What now?") == "That is hard. What now?"
 

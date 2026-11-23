@@ -91,8 +91,10 @@ How long it lasts (`app.py`):
 Effects of `low`:
 - system prompt gets `LOW_NOTE` (never agree with harsh self-talk; say they matter; mention
   someone they trust or a crisis line if serious);
-- lens: "they sound low right now, so be especially gentle: no challenging and no teaching",
-  with the theme's angle "softly";
+- lens: "they sound low right now, so be especially gentle: no challenging, no teaching, no
+  rating scales and no exercises", with the theme's angle "softly", and again "if it sounds
+  serious, mention someone they trust or a crisis line" (Gemma 4 E2B ignored `LOW_NOTE`'s version
+  of that for the four non-playful therapists: 0 of 24 low replies pointed anywhere; decision 0020);
 - quote requests aren't scripted (`and not low`), so they go to the model or offline gentle;
 - offline mind uses `gentle_reply` (plain acknowledgement + gentle angle + gentle question).
 

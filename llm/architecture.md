@@ -90,7 +90,7 @@ Standalone `compose.yaml` sets only `LLM_URL: ${LLM_URL-}` (empty by default) an
 | `app.py:63` | `NAME_RE` | letter first, then letters/space/`'-.`, max 30 | Anything else becomes no name (prompt-injection guard) |
 | `app.py:64` | `MAX_USER_CHARS` | 1500 | Last message limit (413). Sent as `max_chars` in `api/schools`; the page sets the textarea's `maxLength` from it |
 | `app.py:105-113` | `Msg`/`Chat` | content <= 4000, <= 120 messages, school <= 40, name <= 60 | Pydantic limits (422) |
-| `prompt.py:33` | `CHARS_PER_TOKEN` | 3.2 | Token estimate (measured on the earlier Qwen model, not re-measured on Gemma 4 E2B) |
+| `prompt.py:33` | `CHARS_PER_TOKEN` | 3.2 | Token estimate (Qwen-era; Gemma 4 E2B is ~4.3 chars/token, so it over-counts by ~35%) |
 | `prompt.py:34` | `PER_MESSAGE` | 6 | Template overhead per message |
 | `prompt.py:35` | `MAX_TURNS` | 12 | Most recent messages ever sent |
 | `prompt.py:36` | `SUMMARY_CHARS` | 320 | Running summary of dropped turns |

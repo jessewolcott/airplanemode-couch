@@ -27,11 +27,11 @@ Backend:
   that fit the budget and summarises up to 3 of the dropped user messages in 320 chars.
 - **Merged turns.** `clean_history` joins consecutive same-role messages, so a switch
   (assistant handoff line right after an assistant reply) arrives as one assistant message.
-- **Token estimate is a guess** (`len / 3.2 + 6`), tuned on the earlier Qwen model; not
-  re-measured on Gemma 4 E2B. If prompts overflow the slot, llama.cpp behaviour decides what
-  happens (not tested).
-- `BAD` blocks the words "qwen" and "gemma" in replies. The stop string is Gemma's
-  `<end_of_turn>`; remaining Qwen mentions are history (what was seen on Qwen2.5-1.5B).
+- **Token estimate is conservative** (`len / 3.2 + 6`): Gemma 4 E2B measures ~4.3 chars/token
+  on these prompts, so the 1600 budget is ~1200 real tokens. If prompts overflow the slot,
+  llama.cpp behaviour decides what happens (not tested).
+- `BAD` blocks the words "qwen" and "gemma" in replies. The stop strings are Gemma's
+  `<end_of_turn>`, `<turn|>` and `<|turn>`; remaining Qwen mentions are history (what was seen on Qwen2.5-1.5B).
 - **Summary has looser input checks**: no last-message-must-be-user rule and no 1500-char
   limit (only Pydantic's 4000 per message). An empty history returns the offline "We didn't get
   far today" summary.

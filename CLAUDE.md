@@ -15,6 +15,7 @@ other app built around the shared model.
 docker compose up -d --build         # standalone dev: http://localhost:8774 (offline mind unless LLM_URL is set)
 python tests/test_couch.py           # tests (CI runs these before building); .venv has the pins
 node tests/test_format.mjs           # the page's reply formatting (*italic*/**bold**), run from index.html
+python evals/persona_eval.py http://127.0.0.1:18080   # the real model: 6 therapists x 4 conversations x 3 (llm/testing-and-release.md)
 ```
 
 To try the real model: the platform dev stack runs `llm` (Gemma 4 E2B since platform decision 0018) on the `airplanemode`
@@ -76,7 +77,8 @@ and don't touch the stack's containers: `docker build -t airplanemode-couch:try 
   against Qwen2.5-1.5B, then against Gemma 4 E2B (42 scripted conversations): on Gemma the
   playful pair hold character and drop it when they should; the Pragmatist stacked all his
   tools into one reply until he got `moves` (one tool per reply, in turn; `tidy` also keeps
-  only the last question).
+  only the last question). Rechecked with `evals/persona_eval.py` (platform decision 0020): clean; the low lens
+  now also asks for no rating scales and a crisis line if serious (Mai still rarely mentions one).
 
 ## Releasing
 

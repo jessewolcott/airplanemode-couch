@@ -31,7 +31,10 @@
   `gentle`, `examples` (whether they fitted). `info` feeds the log line.
 - Why 1600: 4096 context / 2 slots = 2048 per request, minus room for the reply
   (`MAX_TOKENS` 220) and estimation error. `CHARS_PER_TOKEN` 3.2 was chosen on the earlier
-  Qwen model ("closer to 4 in practice"); it hasn't been re-measured for Gemma 4 E2B.
+  Qwen model. On Gemma 4 E2B (llama.cpp `/tokenize` of the templated first-turn prompt, all six
+  schools) it's 4.2-4.4 chars/token: an estimate of 825-1197 was 595-879 real tokens, so a full
+  1600-token estimate is ~1200 real. Kept at 3.2 on purpose: room to spare, and short prompts
+  are faster on the R6S (platform decision 0020).
 
 ### `RULES` (`:17`)
 
@@ -49,7 +52,7 @@ Theme = the first theme found scanning the last 3 user messages newest first, el
 | Case | Nudge |
 |---|---|
 | gentle (playful, dropped act) | set the act aside; one of `gentle.angles`; "plainly warm and kind ... end with one gentle question ... mention someone they trust or a crisis line if serious" |
-| low (or flagged, any school) | "be especially gentle: no challenging and no teaching"; the angle "softly"; 2-5 sentences, one gentle question |
+| low (or flagged, any school) | "be especially gentle: no challenging, no teaching, no rating scales and no exercises"; the angle "softly"; 2-5 sentences, one gentle question; "If it sounds serious, mention that talking to someone they trust or a crisis line can help" (both added for Gemma 4 E2B, decision 0020: Quinn asked to rate worthlessness 0-10, and no non-playful therapist pointed anywhere on "nobody would notice if I didn't come back") |
 | school has `moves` | angle + `voice` + "This reply's move: <moves[(turns-1) % len]>" + "2 to 4 sentences, and only one question" |
 | default | angle + `voice` (or default) + "2 to 5 sentences, ending with one question" |
 
@@ -66,7 +69,7 @@ Two entry points share the same rules:
 - `tidy(raw, ...)` (`:335`) at the end: the validated final reply, or `""` = unusable.
 
 The pipeline:
-1. `_prep` (`:222`): cut at special tokens (`<|...|>`, `</s>`, `[INST]`) and at a new line
+1. `_prep` (`:222`): cut at special tokens (`<|...|>`, Gemma's `<|turn>`/`<turn|>`/`<end_of_turn>`, `</s>`, `[INST]`) and at a new line
    starting with a role label (`User:`, `Client:`, `Therapist:`, `Q:`, the person's name...),
    or mid-line `User:/Client:/Human:/Patient:`; strip a leading speaker label (including the
    therapist's name), markdown bold/headings/bullets, part labels ("Brag:", "Practical tip:",

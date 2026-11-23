@@ -1,9 +1,27 @@
 # Testing, dev setups and releasing
 
+## Model eval (`evals/persona_eval.py`)
+
+`python evals/persona_eval.py <llama.cpp URL> [--samples 3] [--schools a,b] [--show] [--out f.json]`
+drives the real app through `TestClient` (prompt, streaming, checks, fallbacks, safety), 6
+therapists x 4 conversations (missed wedding, new job, seatmate, low mood; 10 user turns) x 3
+samples, plus one end-of-session summary per conversation. Per therapist: replies from the
+model, unusable, more than one question, words, cheap voice markers (noisy: ±5 of 24 between
+identical runs; read the transcripts), low turns that go gentle (playful pair), point to help
+(someone they trust / crisis line) or ask for a rating, and the Narcissist taking the person's
+problem as his own. The dev stack doesn't publish the model; the docstring has a socat command
+to reach it on 127.0.0.1 for a while.
+
+Gemma 4 E2B, 3 samples, 2026-11-22 (platform decision 0020): 180/180 replies from the model, none
+unusable, never more than one question, 24/24 summaries, both before and after. Low turns
+pointing to help 8 -> 14 of 36 (non-playful 0 -> 5 of 24, Mai still 0 of 6), rating-scale
+questions on low turns 1 -> 0, after the low lens got "no rating scales" and "crisis line if
+serious".
+
 ## Tests (`tests/test_couch.py`)
 
 A plain script, no pytest: `python tests/test_couch.py` (from the repo root; `.venv` has the
-pins). 69 tests as of 0.2.3, all passing on 2026-11-22. Also `node tests/test_format.mjs` (8 tests: the reply formatter, including every partial stage of streamed replies), run in CI. It prints `ok`/`FAIL` per test and
+pins). 69 tests as of 0.2.3, all passing on 2026-11-22 (plus Gemma 4 turn-token and low-lens asserts, decision 0020). Also `node tests/test_format.mjs` (8 tests: the reply formatter, including every partial stage of streamed replies), run in CI. It prints `ok`/`FAIL` per test and
 exits 1 on any failure.
 
 How it works:
