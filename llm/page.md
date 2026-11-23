@@ -2,9 +2,27 @@
 
 One file: CSS (`:10-164`), markup (`:167-211`), vanilla JS (`:213-563`). No framework, no
 external fonts or scripts, no build step. Dark only (`color-scheme: dark`). All URLs are
-relative (`api/schools`, `api/reply`, `icon.svg`, `../` for the AirplaneMode home link), which
-`test_page_and_health` enforces: no `"/api/`, no `src`/`href` starting with `http:`, `//` or
+relative (`api/schools`, `api/reply`, `icon.svg`, `../` for the AirplaneMode home button), which
+`test_page_and_health` enforces (it also checks the `a.am-home` link and that the brand points at
+`./`): no `"/api/`, no `src`/`href` starting with `http:`, `//` or
 `/x`, and no `http://`/`https://` anywhere.
+
+## Header and leaving
+
+The header is shared by both screens: the brand (couch icon + "The Couch"; icon only in the chat
+below 520 px), then in the chat the therapist (`#who`) and the session menu button, and always,
+at the right end, the AirplaneMode home button `a.am-home#amHome` (`href="../"`, house icon,
+44 px, accent focus ring; platform app contract item 10).
+
+- The **brand** goes to the app's own start screen (`href="./"`, the click is handled in JS:
+  `showStart()` with the current therapist pre-selected). The conversation is kept: the start
+  screen then shows "Back to your conversation with <therapist>" (`#resume` -> `showChat()`).
+  If a reply is streaming it asks first and aborts it.
+- The **home button** just leaves, because the session is in localStorage and boot resumes it.
+  `leaveOk()` asks first only when something would be lost: a reply still arriving (`busy`), or a
+  conversation with user messages when localStorage doesn't work (`storageWorks()` probe).
+- The header has no `z-index` of its own so the home button (`z-index: 11`) stays above an open
+  sheet and its backdrop (9/10) and can be used while a sheet is up.
 
 ## Screens
 
@@ -89,7 +107,7 @@ offline mind for now"; anything else -> "Offline mind" (amber dot).
 - **Forget this conversation** (`forget`, `:537`): confirm, abort any request, clear the
   session, back to the start screen. The remembered first name (`couch.name`) is kept.
 
-## Boot (`:546`)
+## Boot
 
 1. `GET api/schools` -> `SCHOOLS`, `RES`, `DISC`, `ALIAS`. Failure: replaces `main` with
    "Couldn't load The Couch. Check you're on the hotspot and reload."

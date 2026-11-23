@@ -415,6 +415,9 @@ def test_page_and_health():
     assert not re.search(r'(src|href)="(https?:|//|/[^/])', html), re.findall(r'(?:src|href)="[^"]*"', html)
     assert "http://" not in html and "https://" not in html
     assert c.get("/icon.svg").status_code == 200
+    # app contract item 10: the AirplaneMode home button; the brand stays inside the app
+    assert '<a class="am-home" href="../"' in html and 'aria-label="AirplaneMode home"' in html
+    assert '<a class="brand" href="./"' in html and html.count('href="../"') == 1
 
 
 def test_schools_endpoint():

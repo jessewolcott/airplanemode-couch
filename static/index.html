@@ -27,7 +27,8 @@
   [hidden] { display: none !important; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
-  header { position: relative; z-index: 2; width: var(--col); margin: 0 auto; display: flex; align-items: center; gap: 10px;
+  /* no z-index on the header itself, so the home button can sit above an open sheet's backdrop */
+  header { position: relative; width: var(--col); margin: 0 auto; display: flex; align-items: center; gap: 10px;
     padding: max(10px, env(safe-area-inset-top)) 14px 10px; }
   .brand { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--ink); font: 600 1.05rem var(--serif); min-height: 44px; }
   .brand svg { width: 26px; height: 26px; }
@@ -43,6 +44,14 @@
   .iconbtn { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; color: var(--dim); flex: none; }
   .iconbtn:hover, .iconbtn:focus-visible { background: #ffffff0d; color: var(--ink); }
   .iconbtn svg { width: 22px; height: 22px; }
+  .brand:focus-visible, .iconbtn:focus-visible { outline: 2px solid var(--a); outline-offset: 2px; border-radius: 12px; }
+  /* the AirplaneMode home button (platform app contract item 10): right end of the header on
+     every screen, and above a sheet's backdrop so it stays reachable */
+  a.am-home { position: relative; z-index: 11; margin-left: auto; flex: none; width: 44px; height: 44px; border-radius: 12px;
+    display: grid; place-items: center; color: var(--dim); background: color-mix(in srgb, var(--panel) 85%, transparent);
+    border: 1px solid var(--line); text-decoration: none; transition: color .15s, border-color .15s; }
+  a.am-home:hover { color: var(--ink); border-color: color-mix(in srgb, var(--a) 45%, var(--line)); }
+  a.am-home:focus-visible { outline: 2px solid var(--a); outline-offset: 2px; color: var(--ink); }
 
   main { position: relative; z-index: 1; flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
@@ -165,7 +174,7 @@
 </head>
 <body>
 <header>
-  <a class="brand" href="../" title="Back to AirplaneMode" id="brand">
+  <a class="brand" href="./" title="The Couch: choose a therapist" id="brand">
     <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 15v-3a4 4 0 0 1 4-4h12a4 4 0 0 1 4 4v3" fill="none" stroke="currentColor" stroke-width="2.2" style="color:var(--a)"/><path d="M4 15a2 2 0 0 1 4 0v3h16v-3a2 2 0 0 1 4 0v7H4z" fill="var(--a)"/><path d="M7 22v3M25 22v3" stroke="var(--a)" stroke-width="2.2" stroke-linecap="round"/></svg>
     <span>The Couch</span>
   </a>
@@ -176,6 +185,12 @@
   <button class="iconbtn" id="menuBtn" aria-label="Session menu" hidden>
     <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
   </button>
+  <a class="am-home" href="../" aria-label="AirplaneMode home" title="AirplaneMode home" id="amHome">
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none"
+         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/>
+    </svg>
+  </a>
 </header>
 
 <main>
@@ -190,6 +205,7 @@
       <h2 class="pick">Choose your therapist</h2>
       <div class="cards" id="cards" role="group" aria-label="Therapists"></div>
       <button class="btn primary begin" id="begin" disabled>Choose a therapist</button>
+      <button class="btn ghost begin" id="resume" hidden></button>
       <p class="fine"><span id="discShort">A simulator for reflection and fun. Not a therapist, not medical advice.</span><br>
         <button data-act="resources">Need real help?</button> · Nothing you type is stored on the box.</p>
     </div>
@@ -252,6 +268,9 @@ function showStart() {
   document.body.classList.remove("chatting"); $("#start").hidden = false;
   document.documentElement.style.removeProperty("--a");
   $("#name").value = (S && S.name) || recall(NAME_KEY) || "";
+  const ongoing = S && S.messages.some(m => m.role === "user") && BY[S.school];
+  $("#resume").hidden = !ongoing;
+  if (ongoing) $("#resume").textContent = `Back to your conversation with ${ongoing.therapist}`;
   $("#cards").innerHTML = SCHOOLS.map(s => `
     <button class="card" style="--a:${s.accent}" data-school="${esc(s.id)}" aria-pressed="${chosen === s.id}">
       <span class="av">${s.avatar}</span>
@@ -287,6 +306,8 @@ $("#begin").onclick = () => {
   save();
   showChat();
 };
+
+$("#resume").onclick = () => { if (S) showChat(); };
 
 // ---------------- chat ----------------
 function showChat() {
@@ -551,6 +572,33 @@ function forget() {
   store(KEY, null);
   showStart();
 }
+
+// ---------------- leaving ----------------
+// The brand goes to the app's own start screen (the conversation stays and can be picked up from
+// there). The house icon leaves for the AirplaneMode menu: the session is kept in localStorage, so
+// that only asks first when something would be lost: a reply still arriving, or a conversation
+// the browser can't keep.
+function storageWorks() {
+  try { localStorage.setItem("couch.probe", "1"); localStorage.removeItem("couch.probe"); return true; } catch (e) { return false; }
+}
+function leaveOk(where) {
+  const who = S && BY[S.school] ? BY[S.school].therapist : "The therapist";
+  if (busy) return confirm(`${who} is still replying. ${where}? That reply will be lost.`);
+  if (S && S.messages.some(m => m.role === "user") && !storageWorks())
+    return confirm(`${where}? This browser can't keep the conversation, so it will be lost (export it first if you want it).`);
+  return true;
+}
+$("#brand").addEventListener("click", e => {
+  if (!SCHOOLS.length) return;            // the page didn't load: a plain reload is the best start
+  e.preventDefault();
+  closeSheet();
+  if ($("#chat").hidden) return;           // already on the start screen
+  if (busy && !leaveOk("Go to the start screen")) return;
+  if (busy && ctrl) ctrl.abort();
+  chosen = S ? S.school : chosen;
+  showStart();
+});
+$("#amHome").addEventListener("click", e => { if (!leaveOk("Leave The Couch")) e.preventDefault(); });
 
 // ---------------- boot ----------------
 (async function boot() {
