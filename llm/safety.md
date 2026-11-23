@@ -70,7 +70,7 @@ check(text):
   - playful schools are in gentle mode for the rest of the session;
   - `/api/summary` returns `resources: true` and a fixed `safety_note`.
 
-## 2. Low mood (`safety.py:211-240`)
+## 2. Low mood (`safety.py:211-241`)
 
 `low_mood(text)` = any `LOW_MOOD` pattern after the same normalise + idiom removal. Patterns
 include: hopeless (not "hopeless at"), worthless, "what's the point" (end of sentence or of
@@ -86,7 +86,7 @@ How long it lasts (`app.py`):
   that turn and the next (`_low`, `app.py:137`).
 - **Playful schools:** `low` stays true for the **rest of the session** once any user message
   was low, and also while grief is the top theme of any of the last 3 user messages
-  (`app.py:313`; `safety.py`'s low-mood comment says the same).
+  (`app.py:310`; `safety.py`'s low-mood comment says the same).
 
 Effects of `low`:
 - system prompt gets `LOW_NOTE` (never agree with harsh self-talk; say they matter; mention

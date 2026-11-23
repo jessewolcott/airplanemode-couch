@@ -3,7 +3,7 @@
 ## Tests (`tests/test_couch.py`)
 
 A plain script, no pytest: `python tests/test_couch.py` (from the repo root; `.venv` has the
-pins). 66 tests as of 0.2.0, all passing on 2026-11-22. It prints `ok`/`FAIL` per test and
+pins). 69 tests as of 0.2.2, all passing on 2026-11-22. It prints `ok`/`FAIL` per test and
 exits 1 on any failure.
 
 How it works:
@@ -95,7 +95,8 @@ PRs): `ghcr.io/jessewolcott/airplanemode-couch:main` for main, `:X.Y.Z` for tag 
 5. Update the "Released" line in this repo's `CLAUDE.md`.
 
 Released: 0.1.0 (Stoicism + Socialism), 0.2.0 (six therapists, Robin replaced by Mai,
-low-mood switch, tuned for Gemma 4 E2B, `moves`).
+low-mood switch, tuned for Gemma 4 E2B, `moves`), 0.2.1 (quote-intent and busy-queue fixes,
+Gemma stop token), 0.2.2 (home button).
 
 ## Untested (keep marking it)
 

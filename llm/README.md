@@ -1,6 +1,6 @@
 # The Couch: how it's built (LLM / engineer reference)
 
-Checked-in engineering notes, written from the code (release 0.2.0 plus the fixes after it,
+Checked-in engineering notes, written from the code (release 0.2.2,
 2026-11-22). They stay out of the image: `.dockerignore` lists `llm/`, because its `*.md` line
 only matches Markdown files at the repo root. If the code and these notes disagree, the code
 wins; fix the notes.

@@ -100,8 +100,8 @@ server. Tested: `test_model_renamed_school_still_answers`,
 `test_renamed_school_offline_and_page`, and the `socialism` summary call in
 `test_summary_offline`.
 
-## Templates (`schools.fill`, `schools.py:224`)
+## Templates (`schools.fill`, `schools.py:223`)
 
 `{, name}` -> ", Sam" or ""; `, {name}` -> same; `{name}` -> the name or "friend"; any other
 `{key}` from keyword args (`{themes}`, `{prev}`). The page has its own `fill()` with the same
-rules (`static/index.html:231`).
+rules (`static/index.html:247`).

@@ -1,6 +1,6 @@
 # The page: `static/index.html`
 
-One file: CSS (`:10-164`), markup (`:167-211`), vanilla JS (`:213-563`). No framework, no
+One file: CSS (`:10-173`), markup (`:175-227`), vanilla JS (`:229-623`). No framework, no
 external fonts or scripts, no build step. Dark only (`color-scheme: dark`). All URLs are
 relative (`api/schools`, `api/reply`, `icon.svg`, `../` for the AirplaneMode home button), which
 `test_page_and_health` enforces (it also checks the `a.am-home` link and that the brand points at
@@ -26,14 +26,14 @@ at the right end, the AirplaneMode home button `a.am-home#amHome` (`href="../"`,
 
 ## Screens
 
-- **Start** (`#start`, `showStart`, `:250`): hero, optional first-name input (`maxlength 30`,
+- **Start** (`#start`, `showStart`, `:266`): hero, optional first-name input (`maxlength 30`,
   remembered in `couch.name`), the therapist cards (avatar, name, therapist, tagline,
   description, *Playful* pill + `playful_note`), a "Sit down with <therapist>" button, and a
   "Need real help?" link. Choosing a card sets `--a`/`--a2` to the school's accents.
-- **Chat** (`#chat`, `showChat`, `:292`): header with avatar, "Therapist · School", a status
+- **Chat** (`#chat`, `showChat`, `:313`): header with avatar, "Therapist · School", a status
   dot + label; the message log; composer (textarea `maxLength` from `api/schools`' `max_chars`, 1500, Enter sends only on
   devices with hover, i.e. not phones); a disclaimer line with a "Real help" link.
-- **Sheets** (bottom sheets, `sheet()`, `:449`): the session menu, switch therapist, real
+- **Sheets** (bottom sheets, `sheet()`, `:480`): the session menu, switch therapist, real
   help. Escape or a tap on the backdrop closes them.
 
 ## The session (`localStorage`)
@@ -49,7 +49,7 @@ Message kinds stored locally:
 | `resources` | - | no |
 | `summary` | `school, summary, takeaway, resources, safety_note` | no |
 
-`payload()` (`:355`) sends the last 40 user/assistant messages as `{role, content}`. The
+`payload()` (`:386`) sends the last 40 user/assistant messages as `{role, content}`. The
 server never sees notes, cards or summaries. `store()`/`recall()` swallow storage errors;
 without storage the session simply isn't kept across reloads.
 
@@ -57,7 +57,7 @@ Starting a session pushes a random `opening_lines` entry (filled with the name) 
 assistant message with mode `script`, which is then sent back as context on the first reply.
 Starting a new one over a conversation with user messages asks for confirmation.
 
-## Sending a message (`send`, `:357`)
+## Sending a message (`send`, `:388`)
 
 1. `busy = true`; append the user message; add a temporary row with a typing indicator.
 2. After 7 s with nothing shown: "The on-board model is slow; <therapist> is thinking…".
@@ -85,26 +85,26 @@ Only one request at a time (`busy`). The `AbortController` is only used by "Forg
 
 ## Status
 
-`checkStatus()` (`:309`) calls `api/status` once per `showChat()` (start, switch, boot), and
+`checkStatus()` (`:330`) calls `api/status` once per `showChat()` (start, switch, boot), and
 `recheckStatus()` repeats it after an offline reply (see above). No other polling. Labels: `ready` -> "On-board model" (green dot); `loading` -> "Model warming up ·
 offline mind for now"; anything else -> "Offline mind" (amber dot).
 
-## Session menu (`:461`)
+## Session menu (`:492`)
 
-- **End session** (`endSession`, `:498`): needs at least one user message; shows "<therapist>
+- **End session** (`endSession`, `:529`): needs at least one user message; shows "<therapist>
   is writing your session notes…", POSTs `api/summary`, appends a `summary` card ("Session
   notes from <therapist>", the summary, a "Try this" box with the takeaway, the safety note
   if `resources`, buttons Export and New session). On error: a note "Couldn't write the
   notes just now." The session can carry on afterwards.
-- **Switch therapist** (`switchTo`, `:489`): sets `S.school`, appends a handoff note
+- **Switch therapist** (`switchTo`, `:520`): sets `S.school`, appends a handoff note
   ("<next> takes over from <prev>") and a `handoff_lines` entry with `{prev}` filled. The
   history is kept and sent to the new therapist; earlier replies keep their own avatar
   (`m.school`).
-- **Export as text** (`exportText`, `:518`): a `.txt` download `the-couch-YYYY-MM-DD.txt`
+- **Export as text** (`exportText`, `:549`): a `.txt` download `the-couch-YYYY-MM-DD.txt`
   with a header, each line as "Name: text", notes in brackets, resources and session notes.
 - **Real help**: the resources card (labels + details from `api/schools`, plus the
   disclaimer) in a sheet.
-- **Forget this conversation** (`forget`, `:537`): confirm, abort any request, clear the
+- **Forget this conversation** (`forget`, `:568`): confirm, abort any request, clear the
   session, back to the start screen. The remembered first name (`couch.name`) is kept.
 
 ## Boot

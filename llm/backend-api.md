@@ -15,7 +15,7 @@ are no accounts and no admin features.
 | `GET /api/schools` | 269 | `{schools: [public(s)...], aliases, resources, disclaimer, max_chars}` |
 | `GET /api/status` | 275 | `{model: bool, state}` |
 | `POST /api/reply` | 292 | `text/event-stream` (see below) |
-| `POST /api/summary` | 334 | JSON end-of-session notes |
+| `POST /api/summary` | 332 | JSON end-of-session notes |
 
 ### `GET /api/schools`
 
@@ -47,7 +47,7 @@ Checks, in order:
 last not `user` -> 400 `"The last message must be yours."`, 5. last message > 1500 chars ->
 413. A bad role or over-long field fails Pydantic -> 422.
 
-Then the decision chain (`app.py:304-331`):
+Then the decision chain (`app.py:303-329`):
 
 | Step | Condition | Result `done.mode` |
 |---|---|---|
@@ -60,7 +60,7 @@ Then the decision chain (`app.py:304-331`):
 - `flagged` = any **earlier** user message (not the current one) trips `safety.check`.
 - `low` = `_low(history)` (`app.py:137`): `safety.low_mood` on either of the last two user
   messages.
-- Playful school override (`app.py:313-318`): `low = True` if grief is the **top** theme of
+- Playful school override (`app.py:310-317`): `low = True` if grief is the **top** theme of
   any of the last 3 user messages, or if **any** user message in the history sounds low.
 - `gentle` = `prompt.gentle_mode(school, low, flagged)` = playful and (low or flagged).
 
@@ -126,7 +126,7 @@ raises `LLMError("bad stream chunk")` on unparsable JSON. The shared `httpx.Asyn
 is a backstop in case it leaks as text. The `\nUser:` etc. strings cut role-play whatever the
 model.
 
-### `POST /api/summary` (`app.py:334-369`)
+### `POST /api/summary` (`app.py:331-366`)
 
 Same body and header. No check that the last message is the user's, and no length check
 beyond Pydantic's. `flagged` / `low` look at **all** user messages; `gentle` is playful and

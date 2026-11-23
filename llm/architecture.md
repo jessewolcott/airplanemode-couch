@@ -54,7 +54,7 @@
 ## How it plugs into the platform
 
 - Platform `compose.yaml` service `couch`: `profiles: ["llm"]` (model app, not on GL.iNet),
-  image `ghcr.io/jessewolcott/airplanemode-couch:0.2.0` (pinned), env
+  image `ghcr.io/jessewolcott/airplanemode-couch:0.2.2` (pinned), env
   `LLM_URL: ${LLM_URL-http://llm:8080}`, `mem_limit ${COUCH_MEM:-64m}`, `restart:
   unless-stopped`. No volume.
 - Platform `compose.dev.yaml` builds `../airplanemode-couch` as `airplanemode-couch:dev`.

@@ -148,20 +148,20 @@ a cold slot, ~800-token prefix" and whether 45 s is right as untested.
 Deterministic per input: the RNG is seeded with `sha256(school id | len(history) | text)`,
 so the same request gives the same reply.
 
-- `detect_themes` (`:157`): keyword regexes per theme (`KEYWORDS`), some words counting
+- `detect_themes` (`:163`): keyword regexes per theme (`KEYWORDS`), some words counting
   double (`STRONG`: died, funeral, lonely, panic, furious, insomnia, debt...), sorted by score
   then `THEMES` order.
-- `detect_intent` (`:170`): first match of `quote` ("quote", "quotation", "what would
+- `detect_intent` (`:176`): first match of `quote` ("quote", "quotation", "what would
   Marcus/Seneca/... say", and "saying(s)"/"quotes" only in a request: "give me a saying",
   "any quotes?", "your favourite saying"), `technique`, `advice` (ignored if the message is over 12
   words, so the theme leads), `who`, `thanks`, `goodbye`, `greeting` (whole message),
   `unsure`; else `short` for 1-2 words with no theme; else `None`.
-- `reflect` (`:183`): "I feel X" -> "It sounds like you feel X." with pronoun swaps, cut at
+- `reflect` (`:189`): "I feel X" -> "It sounds like you feel X." with pronoun swaps, cut at
   but/because/so/punctuation, 1-9 words, else nothing.
-- `_pick` (`:208`): a random option whose filled text doesn't appear in any earlier assistant
+- `_pick` (`:214`): a random option whose filled text doesn't appear in any earlier assistant
   reply; once all are used, anything but the last reply's.
 
-`reply(school, history, name, low, gentle)` (`:248`):
+`reply(school, history, name, low, gentle)` (`:254`):
 1. low or gentle: gentle quote request -> non-persona quote + gentle question; low, or gentle
    and not a quote/technique/advice request -> `gentle_reply` (`GENTLE_TALK` for
    thanks/goodbye, else ack-or-mirror + gentle angle + gentle question). Gentle-but-not-low
@@ -178,7 +178,7 @@ so the same request gives the same reply.
    quote, or from turn 5 on every 4th turn (5, 9, ...) a technique, replaces the angle when
    one fits the theme; then a question. On turns 2 and 7 the name may be prefixed.
 
-`summary` (`:319`): top 3 themes over all user messages, one `closing.summary_lines` (with
+`summary` (`:325`): top 3 themes over all user messages, one `closing.summary_lines` (with
 `{themes}`) + a farewell, and a technique for the top theme as the takeaway; gentle versions
 use `GENTLE_SUMMARY`, `GENTLE_FAREWELL`, `GENTLE_TAKEAWAY`. No user text -> "We didn't get far
 today, and that's fine. The couch will be here."
