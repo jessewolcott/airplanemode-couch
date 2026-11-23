@@ -1,6 +1,6 @@
 # The page: `static/index.html`
 
-One file: CSS (`:10-173`), markup (`:175-227`), vanilla JS (`:229-623`). No framework, no
+One file: CSS (`:10-183`), markup (`:185-237`), vanilla JS (`:239-666`). No framework, no
 external fonts or scripts, no build step. Dark only (`color-scheme: dark`). All URLs are
 relative (`api/schools`, `api/reply`, `icon.svg`, `../` for the AirplaneMode home button), which
 `test_page_and_health` enforces (it also checks the `a.am-home` link and that the brand points at
@@ -26,14 +26,14 @@ at the right end, the AirplaneMode home button `a.am-home#amHome` (`href="../"`,
 
 ## Screens
 
-- **Start** (`#start`, `showStart`, `:266`): hero, optional first-name input (`maxlength 30`,
+- **Start** (`#start`, `showStart`, `:308`): hero, optional first-name input (`maxlength 30`,
   remembered in `couch.name`), the therapist cards (avatar, name, therapist, tagline,
   description, *Playful* pill + `playful_note`), a "Sit down with <therapist>" button, and a
   "Need real help?" link. Choosing a card sets `--a`/`--a2` to the school's accents.
-- **Chat** (`#chat`, `showChat`, `:313`): header with avatar, "Therapist · School", a status
+- **Chat** (`#chat`, `showChat`, `:355`): header with avatar, "Therapist · School" (`#whoName`: on screens up to 520 px the school drops to a smaller second line, `.sep`/`.school` spans; `title` has the full text), a status
   dot + label; the message log; composer (textarea `maxLength` from `api/schools`' `max_chars`, 1500, Enter sends only on
   devices with hover, i.e. not phones); a disclaimer line with a "Real help" link.
-- **Sheets** (bottom sheets, `sheet()`, `:480`): the session menu, switch therapist, real
+- **Sheets** (bottom sheets, `sheet()`, `:523`): the session menu, switch therapist, real
   help. Escape or a tap on the backdrop closes them.
 
 ## The session (`localStorage`)
@@ -49,7 +49,7 @@ Message kinds stored locally:
 | `resources` | - | no |
 | `summary` | `school, summary, takeaway, resources, safety_note` | no |
 
-`payload()` (`:386`) sends the last 40 user/assistant messages as `{role, content}`. The
+`payload()` (`:429`) sends the last 40 user/assistant messages as `{role, content}`. The
 server never sees notes, cards or summaries. `store()`/`recall()` swallow storage errors;
 without storage the session simply isn't kept across reloads.
 
@@ -57,7 +57,7 @@ Starting a session pushes a random `opening_lines` entry (filled with the name) 
 assistant message with mode `script`, which is then sent back as context on the first reply.
 Starting a new one over a conversation with user messages asks for confirmation.
 
-## Sending a message (`send`, `:388`)
+## Sending a message (`send`, `:431`)
 
 1. `busy = true`; append the user message; add a temporary row with a typing indicator.
 2. After 7 s with nothing shown: "The on-board model is slow; <therapist> is thinking…".
@@ -85,26 +85,26 @@ Only one request at a time (`busy`). The `AbortController` is only used by "Forg
 
 ## Status
 
-`checkStatus()` (`:330`) calls `api/status` once per `showChat()` (start, switch, boot), and
+`checkStatus()` (`:373`) calls `api/status` once per `showChat()` (start, switch, boot), and
 `recheckStatus()` repeats it after an offline reply (see above). No other polling. Labels: `ready` -> "On-board model" (green dot); `loading` -> "Model warming up ·
 offline mind for now"; anything else -> "Offline mind" (amber dot).
 
-## Session menu (`:492`)
+## Session menu (`:535`)
 
-- **End session** (`endSession`, `:529`): needs at least one user message; shows "<therapist>
+- **End session** (`endSession`, `:572`): needs at least one user message; shows "<therapist>
   is writing your session notes…", POSTs `api/summary`, appends a `summary` card ("Session
   notes from <therapist>", the summary, a "Try this" box with the takeaway, the safety note
   if `resources`, buttons Export and New session). On error: a note "Couldn't write the
   notes just now." The session can carry on afterwards.
-- **Switch therapist** (`switchTo`, `:520`): sets `S.school`, appends a handoff note
+- **Switch therapist** (`switchTo`, `:563`): sets `S.school`, appends a handoff note
   ("<next> takes over from <prev>") and a `handoff_lines` entry with `{prev}` filled. The
   history is kept and sent to the new therapist; earlier replies keep their own avatar
   (`m.school`).
-- **Export as text** (`exportText`, `:549`): a `.txt` download `the-couch-YYYY-MM-DD.txt`
+- **Export as text** (`exportText`, `:592`): a `.txt` download `the-couch-YYYY-MM-DD.txt`
   with a header, each line as "Name: text", notes in brackets, resources and session notes.
 - **Real help**: the resources card (labels + details from `api/schools`, plus the
   disclaimer) in a sheet.
-- **Forget this conversation** (`forget`, `:568`): confirm, abort any request, clear the
+- **Forget this conversation** (`forget`, `:611`): confirm, abort any request, clear the
   session, back to the start screen. The remembered first name (`couch.name`) is kept.
 
 ## Boot
@@ -119,8 +119,17 @@ offline mind for now"; anything else -> "Offline mind" (amber dot).
 
 ## Rendering and safety of HTML
 
-- `esc()` escapes all text from the server and the user; `paras()` turns blank-line-separated
-  text into `<p>` with `<br>`.
+- `esc()` (`:255`) escapes all text from the server and the user; `paras(s, fmt, live)` (`:284`)
+  turns blank-line-separated text into `<p>` with `<br>`. With `fmt`, `inline()` (`:265`) then adds
+  a small markdown subset inside one line: `**bold**`/`__bold__` and `*italic*`/`_italic_`, as
+  matched `<strong>`/`<em>` pairs on the already-escaped text, so model text can't inject markup.
+  Unmatched markers stay literal (`5 * 3`, `snake_case`). With `live` (while a reply streams), an
+  opened-but-unclosed marker formats the rest of the last line and a trailing marker run is held
+  back, so tags are always balanced; a lone `*word` can show italic mid-stream and turn back
+  into a literal `*` when the reply finishes.
+- Formatted: model, offline and opening replies (`msgHTML`), and the session summary with its
+  "Try this" line. Not formatted: safety replies (`mode === "safety"`, fixed text) and user
+  messages. Tests: `tests/test_format.mjs` (node, runs the page's own code; in CI).
 - School avatars are inserted as raw SVG; `schools.validate` (no scripts, handlers, links,
   external URLs, < 6 KB) is what keeps that safe.
 - User messages render with `white-space: pre-wrap`; assistant ones as paragraphs.

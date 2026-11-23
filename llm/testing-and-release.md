@@ -3,7 +3,7 @@
 ## Tests (`tests/test_couch.py`)
 
 A plain script, no pytest: `python tests/test_couch.py` (from the repo root; `.venv` has the
-pins). 69 tests as of 0.2.2, all passing on 2026-11-22. It prints `ok`/`FAIL` per test and
+pins). 69 tests as of 0.2.3, all passing on 2026-11-22. Also `node tests/test_format.mjs` (8 tests: the reply formatter, including every partial stage of streamed replies), run in CI. It prints `ok`/`FAIL` per test and
 exits 1 on any failure.
 
 How it works:

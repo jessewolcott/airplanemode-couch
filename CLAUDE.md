@@ -82,7 +82,7 @@ and don't touch the stack's containers: `docker build -t airplanemode-couch:try 
 
 Push a `vX.Y.Z` tag. CI tests, then publishes `ghcr.io/jessewolcott/airplanemode-couch:X.Y.Z`
 (arm64 + amd64). **Ask Jesse before pushing a release tag.** Released: 0.1.0; 0.2.0 (six therapists, Robin replaced by Mai, low-mood switch, tuned for
-Gemma 4 E2B); 0.2.1 (quote-intent and busy-queue fixes, Gemma stop token); 0.2.2 (home button), pinned in the platform's `compose.yaml`. On a release: bump that pin, and keep the
+Gemma 4 E2B); 0.2.1 (quote-intent and busy-queue fixes, Gemma stop token); 0.2.2 (home button); 0.2.3 (phone header, *italic*/**bold** in replies), pinned in the platform's `compose.yaml`. On a release: bump that pin, and keep the
 platform's `portal/apps.json` description and the homepage card in step (homepage: change
 English, update all six translations, run `tools/build_i18n.py` and `tools/check_i18n.py` in
 `../airplanemode-site`; its CI fails if they don't match).

@@ -56,7 +56,8 @@ Nothing has been tested on real hardware or real phones yet (see `testing-and-re
 | `schools.py` | Loading and validating school files; `public()` view; `fill()` templates; aliases |
 | `schools/*.json` | The six therapists (empath, pragmatist, stoicism, hochiminh, nihilist, narcissist) |
 | `static/index.html`, `static/icon.svg` | The page and its icon |
-| `tests/test_couch.py` | 66 tests, plain script (no pytest), fake llama.cpp via `httpx.MockTransport` |
+| `tests/test_couch.py` | 69 tests, plain script (no pytest), fake llama.cpp via `httpx.MockTransport` |
+| `tests/test_format.mjs` | 8 node tests of the page's reply formatter (`inline`/`paras`), in CI |
 | `Dockerfile`, `requirements.txt`, `.dockerignore` | Image (python:3.12-slim, user `couch` uid 10001) |
 | `compose.yaml` | Standalone dev on port 8774 (offline mind unless `LLM_URL` is set) |
 | `app.yaml` | AirplaneMode app manifest |
