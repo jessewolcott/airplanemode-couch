@@ -217,8 +217,7 @@ def public(d):
     """What the page needs to show a school (no prompts, no offline material)."""
     return {k: d[k] for k in ("id", "name", "therapist", "tagline", "description", "accent", "accent2",
                               "avatar", "opening_lines", "handoff_lines")} | {
-        "playful": bool(d.get("playful")), "playful_note": d.get("playful_note", ""),
-        "techniques": [{"name": t["name"], "how": t["how"]} for t in d["techniques"]]}
+        "playful": bool(d.get("playful")), "playful_note": d.get("playful_note", "")}
 
 
 def fill(template, name="", **values):

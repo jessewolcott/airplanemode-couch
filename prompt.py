@@ -30,7 +30,7 @@ LOW_NOTE = ("Right now the person sounds low. Be especially gentle and kind. Nev
             "they say about themselves, or that nobody would care or notice: gently say that they matter. "
             "If it sounds serious, mention talking to someone they trust or a crisis line.")
 DEFAULT_VOICE = "warm and specific to what they said"
-CHARS_PER_TOKEN = 3.2      # conservative for English with Qwen's tokenizer (closer to 4 in practice)
+CHARS_PER_TOKEN = 3.2      # conservative for English; measured on the earlier Qwen model, not re-measured on Gemma 4 E2B
 PER_MESSAGE = 6            # chat-template overhead per message
 MAX_TURNS = 12             # never send more than this many recent messages, however short
 SUMMARY_CHARS = 320

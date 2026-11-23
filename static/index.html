@@ -139,7 +139,7 @@
   .send:disabled { opacity: .35; cursor: default; }
   .send svg { width: 20px; height: 20px; }
   .disc { text-align: center; font-size: .72rem; color: var(--faint); margin-top: 6px; }
-  .disc button { color: var(--dim); text-decoration: underline; font-size: .72rem; padding: 4px; }
+  .disc button { color: var(--dim); text-decoration: underline; font-size: .72rem; min-height: 44px; min-width: 44px; padding: 0 8px; }
 
   /* ---------- sheets ---------- */
   .sheet-bg { position: fixed; inset: 0; background: #0009; z-index: 9; animation: fade .2s; }
@@ -200,7 +200,7 @@
     <div class="composer">
       <form class="box" id="form" autocomplete="off">
         <label class="sr" for="text">Your message</label>
-        <textarea id="text" rows="1" maxlength="1000" placeholder="Say what's on your mind…" enterkeyhint="send"></textarea>
+        <textarea id="text" rows="1" placeholder="Say what's on your mind…" enterkeyhint="send"></textarea>
         <button class="send" id="send" type="submit" aria-label="Send" disabled>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
         </button>
@@ -309,6 +309,16 @@ function setState(state) {
 async function checkStatus() {
   try { const r = await fetch("api/status"); const d = await r.json(); setState(d.state === "ready" ? "ready" : d.state); }
   catch (e) { setState("offline"); }
+}
+// After an offline reply, look again now and every 30 s (past the server's cooldown) for a few
+// minutes, so the label recovers when the model comes back. No model configured: nothing to wait for.
+let recheckTimer = null;
+function recheckStatus(tries = 6) {
+  clearTimeout(recheckTimer);
+  checkStatus().then(() => {
+    if (modelState !== "ready" && modelState !== "none" && tries > 1 && !$("#chat").hidden)
+      recheckTimer = setTimeout(() => recheckStatus(tries - 1), 30000);
+  });
 }
 
 function avatarOf(id) { return (BY[id] || BY[S.school]).avatar; }
@@ -426,7 +436,7 @@ async function send(text) {
   }
   append({role: "assistant", content: text2, school, mode: unusable ? "simple" : mode, gentle: !!(done && done.gentle)});
   if (done && done.resources) append({role: "resources"});
-  if (mode === "offline" && !unusable && modelState === "ready") setState("busy");
+  if (mode === "offline" && !unusable) recheckStatus();
   if (mode === "model" && modelState !== "ready") setState("ready");
   busy = false; syncSend();
 }
@@ -547,6 +557,7 @@ function forget() {
   try {
     const d = await (await fetch("api/schools")).json();
     SCHOOLS = d.schools; RES = d.resources; DISC = d.disclaimer; ALIAS = d.aliases || {};
+    if (d.max_chars) $("#text").maxLength = d.max_chars;   // the server's limit, so the page never hits its 413
     SCHOOLS.forEach(s => BY[s.id] = s);
   } catch (e) {
     document.querySelector("main").innerHTML = '<p class="note" style="margin:40px auto">Couldn\'t load The Couch. Check you\'re on the hotspot and reload.</p>';

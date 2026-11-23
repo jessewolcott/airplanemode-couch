@@ -7,16 +7,16 @@ types is stored or logged on the box.
 Every user message goes through a deterministic safety check first (safety.py). If it trips,
 the reply is a fixed caring message plus crisis resources, never the model. Below that threshold,
 a "low mood" check (hopeless, worthless, empty) makes every therapist gentler for the turn, and
-the playful profiles (Narcissist, Nihilist) drop their act entirely. Otherwise the model
+the playful profiles (Narcissist, Nihilist) drop their act for the rest of the session. Otherwise the model
 answers in the chosen school's voice, streamed as it's written. If there's no model (LLM_URL
 empty, unreachable, loading or too busy), the "offline mind" (offline.py) answers instead.
 
 API (relative to the app's root; the platform serves it at /couch/):
-  GET  api/schools      the therapists (public parts of schools/*.json), crisis resources, and
-                        aliases {old id: new id} for renamed schools (socialism -> hochiminh)
+  GET  api/schools      the therapists (public parts of schools/*.json), crisis resources, the
+                        disclaimer, max_chars (longest message), and aliases {old id: new id}
+                        for renamed schools (socialism -> hochiminh)
   GET  api/status       is the model there? {"model": bool, "state": ...}
   POST api/reply        {school, name, messages:[{role, content}]} -> text/event-stream:
-                          event: meta    {"safety": [...], "resources": bool}
                           event: delta   {"t": "more text"}          (model, as it streams)
                           event: replace {"text": "all text so far"} (a correction while streaming)
                           event: done    {"text": final, "mode": "model"|"offline"|"safety"|"script", "resources": bool,
@@ -153,7 +153,7 @@ async def llm_stream(messages):
     """Yield the reply's text pieces as llama.cpp streams them. Raises LLMError / timeouts."""
     body = {"messages": messages, "max_tokens": MAX_TOKENS, "temperature": 0.6, "top_p": 0.9,
             "repeat_penalty": 1.1, "cache_prompt": True, "stream": True,
-            "stop": ["<|im_end|>", "\nUser:", "\nClient:", "\nHuman:", "\nYou:"]}
+            "stop": ["<end_of_turn>", "\nUser:", "\nClient:", "\nHuman:", "\nYou:"]}
     async with client.stream("POST", f"{LLM_URL}/v1/chat/completions", json=body) as r:
         if r.status_code != 200:
             raise LLMError(f"HTTP {r.status_code}")
@@ -196,7 +196,6 @@ async def model_reply(school, history, name, flagged, low=False):
     speaker = school["therapist"]
     quotes = [q["text"] for q in school["quotes"]]
     self_quotes = any(q.get("persona") for q in school["quotes"])
-    yield _sse("meta", {"safety": [], "resources": False})
     messages, info = prompt.build(school, history, name, PROMPT_TOKENS, flagged, low)
     gentle = info["gentle"]
     raw, sent, why, started = "", "", None, time.monotonic()
@@ -230,8 +229,8 @@ async def model_reply(school, history, name, flagged, low=False):
         model.ok()
         mode = "model"
     else:
-        if why and not raw:
-            model.failed(why)
+        if why and not raw and why != "busy":
+            model.failed(why)     # a busy queue isn't a failure: only this reply goes offline
         elif raw:
             why = "unusable"      # the model answered, but nothing it said survived the checks
             model.ok()
@@ -269,7 +268,7 @@ def icon():
 @app.get("/api/schools")
 def schools():
     return {"schools": [public(s) for s in SCHOOLS.values()], "aliases": ALIASES, "resources": safety.RESOURCES,
-            "disclaimer": DISCLAIMER}
+            "disclaimer": DISCLAIMER, "max_chars": MAX_USER_CHARS}
 
 
 @app.get("/api/status")
@@ -304,8 +303,7 @@ async def reply(body: Chat, request: Request):
     cats = safety.check(last)
     if cats:   # fixed words, never the model's
         log.info("reply school=%s mode=safety", school["id"])
-        return _single([_sse("meta", {"safety": cats, "resources": True}),
-                        _sse("done", {"text": safety.respond(cats), "mode": "safety",
+        return _single([_sse("done", {"text": safety.respond(cats), "mode": "safety",
                                       "resources": True, "safety": cats})])
     flagged = any(safety.check(m["content"]) for m in history[:-1] if m["role"] == "user")
     low = _low(history)
@@ -313,18 +311,17 @@ async def reply(body: Chat, request: Request):
     if school.get("playful") and (any("grief" in offline.detect_themes(u)[:1] for u in users[-3:])
                                   or any(safety.low_mood(u) for u in users)):
         # No comedy act over a bereavement, and once someone has sounded low the act stays off for
-        # the rest of the session: the 1.5B nihilist slipped back into "I'm not important in the
-        # grand scheme" the turn after "nobody would care if I disappeared".
+        # the rest of the session: a small model's nihilist (seen on the earlier Qwen2.5-1.5B) slipped
+        # back into "I'm not important in the grand scheme" the turn after "nobody would care if I
+        # disappeared".
         low = True
     gentle = prompt.gentle_mode(school, low, flagged)
     if offline.detect_intent(last) == "quote" and not low:
         # quotes come from the school file (checked, with sources), never from the model's memory
-        return _single([_sse("meta", {"safety": [], "resources": False}),
-                        _sse("done", {"text": offline.reply(school, history, name, low, gentle), "mode": "script",
+        return _single([_sse("done", {"text": offline.reply(school, history, name, low, gentle), "mode": "script",
                                       "resources": False, "gentle": gentle})])
     if not model.usable():
-        return _single([_sse("meta", {"safety": [], "resources": False}),
-                        _sse("done", {"text": offline.reply(school, history, name, low, gentle), "mode": "offline",
+        return _single([_sse("done", {"text": offline.reply(school, history, name, low, gentle), "mode": "offline",
                                       "why": "none" if not LLM_URL else "cooldown", "resources": False,
                                       "gentle": gentle})])
     return StreamingResponse(model_reply(school, history, name, flagged, low),

@@ -57,8 +57,14 @@ STRONG = {
 }
 
 INTENTS = [
-    ("quote", re.compile(r"\b(?:quote|quotation|saying|what would (?:marcus|seneca|epictetus|ho chi minh|uncle ho|"
-                         r"rogers|carl rogers|william james|james|dewey|nietzsche|camus) say)\b")),
+    # "saying" and plurals only in a request ("give me a saying", "any quotes?"): "my boss keeps
+    # saying I'm lazy" is not a quote request and must reach the model.
+    ("quote", re.compile(r"\b(?:quote|quotation|what would (?:marcus|seneca|epictetus|ho chi minh|uncle ho|"
+                         r"rogers|carl rogers|william james|james|dewey|nietzsche|camus) say|"
+                         r"(?:give|tell|share|send|offer|got)(?: me| us)? (?:a|an|another|some|any|one|your)"
+                         r"(?: (?:good|wise|favou?rite|little|short|old|stoic))? (?:saying|sayings|quotes|quotations)|"
+                         r"(?:any|another|some|your favou?rite|a good|a wise)(?: (?:good|wise|old|stoic|other))? "
+                         r"(?:saying|sayings|quotes|quotations))\b")),
     ("technique", re.compile(r"\b(?:exercise|technique|practice|practise|tool|tip|tips|something to try)\b")),
     ("advice", re.compile(r"\b(?:what (?:should|do|can) i do|what do you (?:think|suggest|recommend)|any advice|"
                           r"advice|how do i|how can i|help me|what now|what would you do)\b")),

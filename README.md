@@ -95,11 +95,14 @@ No card is shown, but:
 - the **playful** ones drop the act: the Narcissist and the Nihilist switch to a plain, kind
   system prompt (their school file's `gentle` block), lose their comic examples, and the
   offline mind uses only gentle lines. The reply carries an *out of character* chip, and they
-  stay out of character for the rest of the session (with the 1.5B model the act snapped back
-  too readily otherwise). The earnest therapists keep the extra gentleness for that turn and the next;
+  stay out of character for the rest of the session (with the earlier Qwen2.5-1.5B model the act
+  snapped back too readily otherwise). The earnest therapists keep the extra gentleness for that turn and the next;
 - the playful ones also stay out of character for the rest of a session in which crisis
   resources were shown, and answer plainly about a bereavement (grief is never the joke);
-- the end-of-session notes are plain and kind too, and suggest reaching out to someone.
+- the playful ones' end-of-session notes are plain and kind too, and suggest reaching out to
+  someone. The four earnest therapists write their notes in their own style; if crisis
+  resources were shown during the session, every therapist's notes also carry a fixed line
+  suggesting someone you trust or a crisis line.
 
 On the way out, sentences that tell someone their life or they don't matter ("your life is
 meaningless", "nobody would notice", "no reason to keep living") are dropped, whoever wrote
@@ -154,9 +157,10 @@ python tests/test_couch.py         # tests (CI runs these before building)
 | `LLM_TIMEOUT` | `45` | seconds to wait for the model's first word before the offline mind answers |
 | `MAX_TOKENS` | `220` | longest model reply, in tokens |
 | `PROMPT_TOKENS` | `1600` | token budget for what's sent to the model |
-| `MAX_STREAMS` | `2` | replies streamed from the model at once; others wait up to `QUEUE_WAIT` (15 s) |
+| `MAX_STREAMS` | `2` | replies streamed from the model at once; others wait up to `QUEUE_WAIT` |
+| `QUEUE_WAIT` | `15` | seconds a reply waits for one of this app's model slots; after that the offline mind answers that reply (a busy queue doesn't start the cooldown) |
 | `LLM_GAP_TIMEOUT` | `20` | seconds of silence mid-reply before keeping what arrived |
-| `LLM_COOLDOWN` | `30` | seconds to use the offline mind after the model fails |
+| `LLM_COOLDOWN` | `30` | seconds to use the offline mind after the model fails (no answer, an error or a timeout) |
 | `SCHOOLS_DIR` | bundled `schools/` | where school files are loaded from |
 
 No volume: it stores nothing. Memory limit 64 MB (about 35 MB in use).

@@ -206,7 +206,8 @@ def respond(categories):
 # ---------------- low mood (below the crisis threshold) ----------------
 # Not a crisis, but the person sounds hopeless, worthless or empty. Nothing fixed is sent and no
 # card is shown; instead every therapist is asked to be especially gentle, and the playful
-# profiles (the Narcissist, the Nihilist) drop the act for the turn. Checked after check():
+# profiles (the Narcissist, the Nihilist) drop the act for the rest of the session (app.py
+# keeps it off once any message in the history sounded low). Checked after check():
 # a crisis message never gets here. Errs towards gentleness: a false alarm costs one joke.
 LOW_MOOD = [
     r"\bhopeless(?:ness)?\b(?! (?:at|with)\b)",

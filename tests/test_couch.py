@@ -349,6 +349,23 @@ def test_offline_intents():
         assert a.strip()
 
 
+def test_quote_intent_only_for_real_requests():
+    for text in ["give me a saying", "any quotes?", "tell me a saying", "Give me a quote about work",
+                 "got a good saying for this?", "what's your favourite saying?", "any other sayings?",
+                 "can you share some quotes", "what would Seneca say?"]:
+        assert offline.detect_intent(text) == "quote", text
+    for text in ["my boss keeps saying I'm lazy", "what are you saying?", "I keep saying yes to everything",
+                 "there's a saying in my family that I'm the lazy one", "she quoted my email back at me",
+                 "I read motivational quotes and they don't help"]:
+        assert offline.detect_intent(text) != "quote", text
+
+
+def test_model_answers_saying_that_is_not_a_quote_request():
+    use_fake(pieces=["That sounds hurtful. ", "What do you make of it?"])
+    done = events(chat(messages=[{"role": "user", "content": "my boss keeps saying I'm lazy"}]))[-1][1]
+    assert done["mode"] == "model", done
+
+
 def test_offline_never_repeats_itself_right_away():
     for s in couch.SCHOOLS.values():
         for theme, text in THEME_SAMPLES.items():
@@ -410,6 +427,9 @@ def test_schools_endpoint():
     assert all(s["playful_note"] for s in d["schools"] if s["playful"])
     assert "system_prompt" not in json.dumps(d)
     assert d["resources"] and "not a therapist" in d["disclaimer"]
+    # the page takes its text-box limit from here, so it matches the server's 413 check
+    assert d["max_chars"] == couch.MAX_USER_CHARS
+    assert 'maxlength="1000"' not in c.get("/").text and "d.max_chars" in c.get("/").text
 
 
 def test_status_when_no_model():
@@ -430,16 +450,16 @@ def test_reply_offline():
     r = chat()
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/event-stream")
     ev = events(r)
-    assert ev[0][0] == "meta" and ev[-1][0] == "done"
+    assert [e for e, _ in ev] == ["done"]
     assert ev[-1][1]["mode"] == "offline" and ev[-1][1]["text"].endswith("?")
 
 
 def test_reply_safety_is_fixed():
     r = chat(messages=[{"role": "user", "content": "honestly I want to kill myself"}])
     ev = events(r)
-    assert ev[0] == ("meta", {"safety": ["self_harm"], "resources": True})
+    assert [e for e, _ in ev] == ["done"]
     done = ev[-1][1]
-    assert done["mode"] == "safety" and done["resources"] and done["text"] == safety.MESSAGES["self_harm"]
+    assert done["safety"] == ["self_harm"] and done["mode"] == "safety" and done["resources"] and done["text"] == safety.MESSAGES["self_harm"]
 
 
 def test_bad_names_are_dropped():
@@ -503,7 +523,7 @@ def test_stream_from_model():
     use_fake(pieces=["That sounds ", "like a heavy ", "load. Which part ", "is yours to carry?"])
     ev = events(chat())
     kinds = [e for e, _ in ev]
-    assert kinds[0] == "meta" and kinds[-1] == "done" and kinds.count("delta") >= 2, kinds
+    assert kinds[-1] == "done" and kinds.count("delta") >= 2 and set(kinds) <= {"delta", "replace", "done"}, kinds
     streamed = "".join(d["t"] for e, d in ev if e == "delta")
     done = ev[-1][1]
     assert done["mode"] == "model" and done["text"] == "That sounds like a heavy load. Which part is yours to carry?"
@@ -538,6 +558,28 @@ def test_model_timeout_falls_back_and_cools_down():
     ev = events(chat())          # in cooldown: straight to the offline mind, no model call
     assert ev[-1][1]["mode"] == "offline" and len(CALLS) == n
     assert c.get("/api/status").json() == {"model": False, "state": "busy"}
+
+
+def test_model_busy_queue_falls_back_without_cooldown():
+    use_fake(pieces=["That sounds like a heavy load. ", "Which part is yours to carry?"])
+
+    class Full:        # every one of our slots taken for longer than QUEUE_WAIT
+        async def acquire(self):
+            await asyncio.sleep(10)
+
+        def release(self):
+            raise AssertionError("released a slot it never got")
+
+    wait = couch.QUEUE_WAIT
+    couch.model.sem, couch.QUEUE_WAIT = (lambda: Full()), 0.2
+    try:
+        done = events(chat())[-1][1]
+    finally:
+        del couch.model.sem
+        couch.QUEUE_WAIT = wait
+    assert done["mode"] == "offline" and done["why"] == "busy", done
+    assert couch.model.usable() and not [p for p, _ in CALLS if p.startswith("/v1")]
+    assert events(chat())[-1][1]["mode"] == "model"      # the next phone still gets the model
 
 
 def test_model_error_falls_back():

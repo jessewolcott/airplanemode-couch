@@ -13,5 +13,8 @@ env:
   LLM_TIMEOUT: Seconds to wait for the model's first word before answering with the offline mind (default 45).
   MAX_TOKENS: Longest reply from the model, in tokens (default 220).
   PROMPT_TOKENS: Token budget for what's sent to the model (default 1600; the 4096 context is shared by 2 slots).
-  MAX_STREAMS: Replies this app streams from the model at once (default 2); others wait up to QUEUE_WAIT seconds (default 15).
+  LLM_GAP_TIMEOUT: Seconds of silence mid-reply before keeping what arrived (default 20).
+  LLM_COOLDOWN: Seconds to use the offline mind after the model fails (default 30).
+  MAX_STREAMS: Replies this app streams from the model at once (default 2); others wait up to QUEUE_WAIT seconds.
+  QUEUE_WAIT: Seconds a reply waits for one of this app's model slots before that reply goes to the offline mind (default 15; not a failure, no cooldown).
   SCHOOLS_DIR: Folder of school files to load instead of the bundled schools/ (for adding schools without a new image).

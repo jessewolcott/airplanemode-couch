@@ -44,7 +44,7 @@ and don't touch the stack's containers: `docker build -t airplanemode-couch:try 
   conversation (localStorage) and sends the last 40 messages; the server is stateless.
 - **Every model path has a fallback**: no `LLM_URL`, unreachable, 5xx, no first token within
   `LLM_TIMEOUT`, our slots busy past `QUEUE_WAIT`, or an answer the checks throw out. Failures
-  (not bad answers) start a 30 s cooldown.
+  (not bad answers, and not a busy queue: that reply alone goes offline) start a 30 s cooldown.
 - **Quotes come from the school files**, short, accurate, public-domain translations, with a
   source; mark your own wording `"paraphrase": true`. The model's quotes are dropped unless they
   match the file; "give me a quote" is answered from the file. Only a school with `persona`
@@ -57,8 +57,8 @@ and don't touch the stack's containers: `docker build -t airplanemode-couch:try 
   Minh and stays off politics, governments, parties and war.
 - **Renaming a school:** add the old id to the new file's `replaces`; the API and the page map
   saved sessions (socialism -> hochiminh is tested).
-- Reply stream protocol (SSE over POST): `meta`, `delta` {t}, `replace` {text}, `done` {text,
-  mode, why, resources, gentle}. The page treats `done.text` as final; `gentle` shows an "out of
+- Reply stream protocol (SSE over POST): `delta` {t}, `replace` {text}, `done` {text,
+  mode, why, resources, gentle, safety}. The page treats `done.text` as final; `gentle` shows an "out of
   character" chip.
 - Schools are data. New behaviour that every school needs goes in the schema
   (`schools.validate`) and the README table.
